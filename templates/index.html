@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bank Sampah TrashTech</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <style>
+      body {
+        background: url("https://png.pngtree.com/thumb_back/fh260/background/20220217/pngtree-beautiful-hand-painted-green-garbage-collection-illustration-background-image_945238.jpg") no-repeat center center/cover;
+        min-height: 100vh;
+      }
+      .overlay {
+        background: rgba(0, 0, 0, 0.5);
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        color: white;
+        text-align: center;
+      }
+      .navbar {
+        background: #004d00;
+        border-bottom: 3px solid #aadd00;
+      }
+      .btn-custom {
+        background: #aadd00;
+        border: none;
+        color: black;
+      }
+      .btn-custom:hover {
+        background: #99cc00;
+      }
+      .team-section {
+        padding: 50px 0;
+        background: rgba(255, 255, 255, 0.9);
+        text-align: center;
+      }
+      .team-member {
+        margin-bottom: 20px;
+      }
+      .team-member img {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        object-fit: cover;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+      <div class="container">
+        <a class="navbar-brand text-light" href="#">TrashTech</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav ms-auto">
+            <li class="nav-item"><a class="nav-link text-light" href="#">Beranda</a></li>
+            <li class="nav-item"><a class="nav-link text-light" href="#">Petunjuk</a></li>
+            <li class="nav-item"><a class="nav-link text-light" href="#team">Tim Kami</a></li>
+            <li class="nav-item"><a class="nav-link text-light" href="#">Lokasi</a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <div class="overlay">
+      <h1>Bank Sampah TrashTech</h1>
+      <p>Merubah sampah menjadi penghasilan tambahan Anda !!!</p>
+      <div>
+        <button class="btn btn-custom me-2" id="adminLoginBtn">Login Admin</button>
+      </div>
+    </div>
+
+    <!-- Section Tim Kami -->
+    <section id="team" class="team-section">
+      <div class="container">
+        <h2 class="mb-4">Tim Kami</h2>
+        <div class="row justify-content-center">
+          <div class="col-md-2 team-member">
+            <img src="https://via.placeholder.com/150" alt="Anggota 1" />
+            <h5>Deril Wijdan</h5>
+            <p>CEO & Founder</p>
+          </div>
+          <div class="col-md-2 team-member">
+            <img src="https://via.placeholder.com/150" alt="Anggota 2" />
+            <h5>Shidqul Aziz</h5>
+            <p>CTO</p>
+          </div>
+          <div class="col-md-2 team-member">
+            <img src="https://via.placeholder.com/150" alt="Anggota 3" />
+            <h5>Giovanni Andika</h5>
+            <p>Marketing</p>
+          </div>
+          <div class="col-md-2 team-member">
+            <img src="https://via.placeholder.com/150" alt="Anggota 4" />
+            <h5>Haikal</h5>
+            <p>Designer</p>
+          </div>
+          <div class="col-md-2 team-member">
+            <img src="https://via.placeholder.com/150" alt="Anggota 5" />
+            <h5>Retsi Andari</h5>
+            <p>Finance</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      document.getElementById("adminLoginBtn").addEventListener("click", function () {
+        window.location.href = "/admin/login";
+      });
+    </script>
+  </body>
+</html>
