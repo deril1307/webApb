@@ -10,8 +10,6 @@ from flask import send_from_directory
 from urllib.parse import quote as url_quote
 
 
-
-
 # Load environment variables
 load_dotenv()
 # Flask Configuration
@@ -30,27 +28,9 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# # MySQL Database Configuration
-# DATABASE_CONFIG = {
-#     "host": os.getenv("DB_HOST", "localhost"),
-#     "user": os.getenv("DB_USER", "root"),
-#     "password": os.getenv("DB_PASS", ""),
-#     "database": os.getenv("DB_NAME", "trashtech_db")
-# }
-
-
-
-# # Database Connection Helper Function
-# def get_db_connection():
-#     return mysql.connector.connect(**DATABASE_CONFIG)
-
 
 # Database Configuration
 # MySQL Database Configuration (Aiven)
-
-
-
-
 # Konfigurasi database menggunakan environment variables
 DATABASE_CONFIG = {
     "host": os.getenv("DB_HOST"),
