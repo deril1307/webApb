@@ -378,4 +378,4 @@ def get_user(user_id):
 # 🟢 Run the App
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))  # Gunakan PORT dari environment variable
-    app.run(host="0.0.0.0", port=port, debug=False)  # Matikan debug di production
+    app.run(port=port, debug=False)  # Tidak perlu host="0.0.0.0"
