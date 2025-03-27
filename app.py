@@ -8,8 +8,6 @@ from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 from flask import send_from_directory
 from urllib.parse import quote as url_quote
-
-
 # Load environment variables
 load_dotenv()
 # Flask Configuration
@@ -379,4 +377,5 @@ def get_user(user_id):
 
 # 🟢 Run the App
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    port = int(os.getenv("PORT", 5000))  # Gunakan PORT dari environment variable
+    app.run(host="0.0.0.0", port=port, debug=False)  # Matikan debug di production
