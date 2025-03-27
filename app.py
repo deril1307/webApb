@@ -7,6 +7,9 @@ from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 from flask import send_from_directory
 from urllib.parse import quote as url_quote
+import cloudinary
+import cloudinary.uploader
+
 # Load environment variables
 load_dotenv()
 # Flask Configuration
@@ -15,6 +18,14 @@ app.secret_key = os.getenv("SESSION_SECRET_KEY", "supersecretkey")
 
 bcrypt = Bcrypt(app)
 CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})
+
+# Konfigurasi Cloudinary
+
+cloudinary.config(
+    cloud_name=os.getenv("CLOUD_NAME"),
+    api_key=os.getenv("API_KEY"),
+    api_secret=os.getenv("API_SECRET")
+)
 
 # untuk menyimpan gambar di lokal
 UPLOAD_FOLDER = "static/uploads/"
@@ -51,7 +62,6 @@ def get_db_connection():
     except mysql.connector.Error as e:
         print(f"🚨 Error: {e}")
         return None
-
 
         
 # 💻 Endpoint Web
@@ -162,13 +172,18 @@ def add_trash_type():
         return jsonify({"error": "Gambar harus diunggah"}), 400
 
     file = request.files['picture']
-    
+
     if file.filename == '' or not allowed_file(file.filename):
         return jsonify({"error": "Format gambar tidak didukung"}), 400
 
+    # Simpan ke lokal
     filename = secure_filename(file.filename)
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    file.save(file_path)
+    local_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    file.save(local_path)
+
+    # Upload ke Cloudinary
+    cloudinary_result = cloudinary.uploader.upload(local_path)
+    cloudinary_url = cloudinary_result["secure_url"]
 
     name = request.form.get("name")
     price = request.form.get("price")
@@ -180,12 +195,13 @@ def add_trash_type():
 
     conn = get_db_connection()
     cursor = conn.cursor()
-    query = "INSERT INTO waste_categories (name, price, unit, picture, description) VALUES (%s, %s, %s, %s, %s)"
-    cursor.execute(query, (name, price, unit, filename, description))
+    query = "INSERT INTO waste_categories (name, price, unit, picture, cloudinary_url, description) VALUES (%s, %s, %s, %s, %s, %s)"
+    cursor.execute(query, (name, price, unit, filename, cloudinary_url, description))
     conn.commit()
     conn.close()
 
-    return jsonify({"message": "Jenis sampah berhasil ditambahkan"}), 201
+    return jsonify({"message": "Jenis sampah berhasil ditambahkan", "cloudinary_url": cloudinary_url}), 201
+
 
 # 🟢 Mengedit jenis sampah
 @app.route('/admin/trash-types/<int:trash_id>', methods=['PUT'])
@@ -195,44 +211,85 @@ def update_trash_type(trash_id):
     unit = request.form.get("unit")
     description = request.form.get("description")
 
-    # Handle gambar 
-    if "picture" in request.files:
-        picture = request.files["picture"].filename
-        request.files["picture"].save(f"static/uploads/{picture}")  # Simpan gambar ke folder
-    else:
-        picture = None  # Jika gambar tidak diubah, biarkan tetap None
-
     conn = get_db_connection()
-    cursor = conn.cursor()
-    # Perbarui data ke database 
-    if picture:
-        query = "UPDATE waste_categories SET name=%s, price=%s, unit=%s, picture=%s, description=%s WHERE id=%s"
-        cursor.execute(query, (name, price, unit, picture, description, trash_id))
-    else:
-        query = "UPDATE waste_categories SET name=%s, price=%s, unit=%s, description=%s WHERE id=%s"
-        cursor.execute(query, (name, price, unit, description, trash_id))
+    cursor = conn.cursor(dictionary=True)
+    
+    # 🔹 Ambil data lama (cloudinary_url & picture)
+    cursor.execute("SELECT cloudinary_url, picture FROM waste_categories WHERE id=%s", (trash_id,))
+    old_data = cursor.fetchone()
+    old_cloudinary_url = old_data["cloudinary_url"] if old_data else None
+    old_picture = old_data["picture"] if old_data else None
+
+    cloudinary_url = old_cloudinary_url  # Default pakai gambar lama
+    picture = old_picture
+
+    if "picture" in request.files:
+        file = request.files["picture"]
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)  # Amankan nama file
+            local_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(local_path)  # Simpan di lokal
+
+            # 🔹 Upload ke Cloudinary
+            cloudinary_result = cloudinary.uploader.upload(local_path)
+            cloudinary_url = cloudinary_result["secure_url"]
+
+            # 🔹 Hapus gambar lama di Cloudinary jika ada
+            if old_cloudinary_url:
+                public_id = old_cloudinary_url.split("/")[-1].split(".")[0]  # Ambil public_id
+                cloudinary.uploader.destroy(public_id)
+
+            # 🔹 Hapus gambar lama di lokal jika ada
+            if old_picture:
+                old_path = os.path.join(app.config['UPLOAD_FOLDER'], old_picture)
+                if os.path.exists(old_path):
+                    os.remove(old_path)
+
+            picture = filename  # Simpan nama file lokal baru
+
+        else:
+            return jsonify({"error": "Format gambar tidak didukung"}), 400
+
+    # 🔹 Perbarui database dengan cloudinary_url & picture
+    query = """
+        UPDATE waste_categories 
+        SET name=%s, price=%s, unit=%s, cloudinary_url=%s, picture=%s, description=%s 
+        WHERE id=%s
+    """
+    cursor.execute(query, (name, price, unit, cloudinary_url, picture, description, trash_id))
     conn.commit()
     conn.close()
     return jsonify({"message": "Jenis sampah berhasil diperbarui"}), 200
-
 
 # 🟢 Menghapus jenis sampah
 @app.route('/admin/trash-types/<int:trash_id>', methods=['DELETE'])
 def delete_trash_type(trash_id):
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
+    
+    # Ambil informasi gambar sebelum dihapus
+    cursor.execute("SELECT picture FROM waste_categories WHERE id=%s", (trash_id,))
+    trash = cursor.fetchone()
+
+    if trash:
+        picture = trash["picture"]
+        if picture:
+            local_path = os.path.join(app.config['UPLOAD_FOLDER'], picture)
+            if os.path.exists(local_path):
+                os.remove(local_path)  # Hapus dari lokal
+
+            # Hapus dari Cloudinary (Opsional)
+            cloudinary.uploader.destroy(picture)
+
+    # Hapus data dari database
     cursor.execute("DELETE FROM waste_categories WHERE id=%s", (trash_id,))
     conn.commit()
     conn.close()
 
     return jsonify({"message": "Jenis sampah berhasil dihapus"}), 200
 
-# # 🟢 upload gambar
-# @app.route('/uploads/<filename>')
-# def uploaded_file(filename):
-#     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-# 🟢 Menghapus jenis sampah melihat gambar
+# 🟢 Melihat jenis sampah melihat gambar
 @app.route('/admin/trash-types', methods=['GET'])
 def get_trash_types():
     conn = get_db_connection()
@@ -241,10 +298,16 @@ def get_trash_types():
     trash_types = cursor.fetchall()
     conn.close()
 
+    # Cek apakah ada Cloudinary URL, jika tidak, gunakan gambar lokal
     for trash in trash_types:
-        trash["picture"] = f"/uploads/{trash['picture']}"  # Menyertakan path gambar
+        if trash["cloudinary_url"]:  # Jika ada di Cloudinary
+            trash["picture"] = trash["cloudinary_url"]
+        else:  # Jika tidak ada, gunakan gambar lokal
+            trash["picture"] = f"/static/uploads/{trash['picture']}" if trash["picture"] else None
 
     return jsonify(trash_types)
+
+
 
 # 📱 Endpoint Mobile App
 # 🟢 Endpoint Register User Mobile App
@@ -309,7 +372,7 @@ def login():
         "email": user["email"]
     }), 200
 
-# 🟢 Endpoint Mobile App Menghapus jenis sampah
+# 🟢 Endpoint Mobile App Melihat jenis sampah
 from decimal import Decimal
 @app.route('/trash/types', methods=['GET'])
 def get_kategori_sampah():
@@ -334,8 +397,22 @@ def get_kategori_sampah():
 # 🟢 Endpoint Mobile App Melihat gambar jenis sampah 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
-    return send_from_directory('static/uploads', filename)
+    local_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
 
+    if os.path.exists(local_path):
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    
+    # Cek di database untuk URL Cloudinary
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT cloudinary_url FROM waste_categories WHERE picture = %s", (filename,))
+    result = cursor.fetchone()
+    conn.close()
+
+    if result and result["cloudinary_url"]:
+        return jsonify({"cloudinary_url": result["cloudinary_url"]})
+    
+    return jsonify({"error": "File not found"}), 404
 
 # 🔵 Endpoint untuk mengambil data user berdasarkan userId
 @app.route("/users/<int:user_id>", methods=["GET"])
@@ -369,8 +446,12 @@ def get_user(user_id):
     except Exception as e:
         print(f"⚠️ Error: {str(e)}")  # Debugging
         return jsonify({"error": str(e)}), 500
+    
+@app.route('/static/uploads/<path:filename>')
+def serve_uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 # 🟢 Run the App
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))  # Gunakan PORT dari environment variable
-    app.run(port=port, debug=False)  # Tidak perlu host="0.0.0.0"
+    app.run(port=port, debug=False) 
