@@ -1,4 +1,3 @@
-import pymysql
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
@@ -61,10 +60,6 @@ def get_db_connection():
 def home():
     some_data = {"message": "Welcome to TrashTech!"}
     return render_template("index.html")  # Halaman utama perkenalan
-
-@app.route('/favicon.ico')
-def favicon():
-    return '', 204  # No content
 
 
 # 🟢 WebAdmin Login Route with Session
