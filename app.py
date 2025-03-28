@@ -20,7 +20,6 @@ bcrypt = Bcrypt(app)
 CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})
 
 # Konfigurasi Cloudinary
-
 cloudinary.config(
     cloud_name=os.getenv("CLOUD_NAME"),
     api_key=os.getenv("API_KEY"),
@@ -165,14 +164,14 @@ def delete_user(user_id):
 
     return jsonify({"message": "Pengguna berhasil dihapus"}), 200
 
-# 🟢Mendapatkan daftar jenis sampah
+
+# 🟢 Mendaftarkan jenis sampah 
 @app.route('/admin/trash-types', methods=['POST'])
 def add_trash_type():
     if 'picture' not in request.files:
         return jsonify({"error": "Gambar harus diunggah"}), 400
 
     file = request.files['picture']
-
     if file.filename == '' or not allowed_file(file.filename):
         return jsonify({"error": "Format gambar tidak didukung"}), 400
 
@@ -186,80 +185,125 @@ def add_trash_type():
     cloudinary_url = cloudinary_result["secure_url"]
 
     name = request.form.get("name")
-    price = request.form.get("price")
+    point_per_unit = request.form.get("point_per_unit")  # Changed from price
     unit = request.form.get("unit")
     description = request.form.get("description")
 
-    if not name or not price or not unit:
-        return jsonify({"error": "Nama, harga, dan satuan harus diisi"}), 400
+    if not name or not point_per_unit or not unit:  # Changed validation
+        return jsonify({"error": "Nama, poin per unit, dan satuan harus diisi"}), 400
+
+    try:
+        point_per_unit = float(point_per_unit)  # Ensure numeric value
+    except ValueError:
+        return jsonify({"error": "Poin per unit harus berupa angka"}), 400
 
     conn = get_db_connection()
     cursor = conn.cursor()
-    query = "INSERT INTO waste_categories (name, price, unit, picture, cloudinary_url, description) VALUES (%s, %s, %s, %s, %s, %s)"
-    cursor.execute(query, (name, price, unit, filename, cloudinary_url, description))
+    query = """
+        INSERT INTO waste_categories 
+        (name, point_per_unit, unit, picture, cloudinary_url, description) 
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """
+    cursor.execute(query, (name, point_per_unit, unit, filename, cloudinary_url, description))
     conn.commit()
     conn.close()
 
-    return jsonify({"message": "Jenis sampah berhasil ditambahkan", "cloudinary_url": cloudinary_url}), 201
-
+    return jsonify({
+        "message": "Jenis sampah berhasil ditambahkan",
+        "data": {
+            "name": name,
+            "point_per_unit": point_per_unit,
+            "unit": unit,
+            "cloudinary_url": cloudinary_url
+        }
+    }), 201
 
 # 🟢 Mengedit jenis sampah
 @app.route('/admin/trash-types/<int:trash_id>', methods=['PUT'])
 def update_trash_type(trash_id):
+    # Get form data
     name = request.form.get("name")
-    price = request.form.get("price")
+    point_per_unit = request.form.get("point_per_unit")  # Changed from price
     unit = request.form.get("unit")
     description = request.form.get("description")
+    
+    # Validate required fields
+    if not name or not point_per_unit or not unit:
+        return jsonify({"error": "Nama, poin per unit, dan satuan harus diisi"}), 400
+    
+    try:
+        point_per_unit = float(point_per_unit)  # Ensure numeric value
+    except ValueError:
+        return jsonify({"error": "Poin per unit harus berupa angka"}), 400
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # 🔹 Ambil data lama (cloudinary_url & picture)
+    # 🔹 Get old data (cloudinary_url & picture)
     cursor.execute("SELECT cloudinary_url, picture FROM waste_categories WHERE id=%s", (trash_id,))
     old_data = cursor.fetchone()
-    old_cloudinary_url = old_data["cloudinary_url"] if old_data else None
-    old_picture = old_data["picture"] if old_data else None
-
-    cloudinary_url = old_cloudinary_url  # Default pakai gambar lama
+    
+    if not old_data:
+        conn.close()
+        return jsonify({"error": "Jenis sampah tidak ditemukan"}), 404
+        
+    old_cloudinary_url = old_data["cloudinary_url"]
+    old_picture = old_data["picture"]
+    cloudinary_url = old_cloudinary_url  # Default to old image
     picture = old_picture
 
+    # Handle image upload if provided
     if "picture" in request.files:
         file = request.files["picture"]
         if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)  # Amankan nama file
+            filename = secure_filename(file.filename)
             local_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(local_path)  # Simpan di lokal
+            file.save(local_path)
 
-            # 🔹 Upload ke Cloudinary
+            # 🔹 Upload to Cloudinary
             cloudinary_result = cloudinary.uploader.upload(local_path)
             cloudinary_url = cloudinary_result["secure_url"]
 
-            # 🔹 Hapus gambar lama di Cloudinary jika ada
+            # 🔹 Delete old Cloudinary image if exists
             if old_cloudinary_url:
-                public_id = old_cloudinary_url.split("/")[-1].split(".")[0]  # Ambil public_id
+                public_id = old_cloudinary_url.split("/")[-1].split(".")[0]
                 cloudinary.uploader.destroy(public_id)
 
-            # 🔹 Hapus gambar lama di lokal jika ada
+            # 🔹 Delete old local file if exists
             if old_picture:
                 old_path = os.path.join(app.config['UPLOAD_FOLDER'], old_picture)
                 if os.path.exists(old_path):
                     os.remove(old_path)
 
-            picture = filename  # Simpan nama file lokal baru
-
+            picture = filename  # Save new filename
         else:
+            conn.close()
             return jsonify({"error": "Format gambar tidak didukung"}), 400
 
-    # 🔹 Perbarui database dengan cloudinary_url & picture
+    # 🔹 Update database
     query = """
         UPDATE waste_categories 
-        SET name=%s, price=%s, unit=%s, cloudinary_url=%s, picture=%s, description=%s 
+        SET name=%s, point_per_unit=%s, unit=%s, 
+            cloudinary_url=%s, picture=%s, description=%s 
         WHERE id=%s
     """
-    cursor.execute(query, (name, price, unit, cloudinary_url, picture, description, trash_id))
+    cursor.execute(query, (
+        name, point_per_unit, unit,
+        cloudinary_url, picture, description,
+        trash_id
+    ))
     conn.commit()
     conn.close()
-    return jsonify({"message": "Jenis sampah berhasil diperbarui"}), 200
+    
+    return jsonify({
+        "message": "Jenis sampah berhasil diperbarui",
+        "data": {
+            "id": trash_id,
+            "name": name,
+            "point_per_unit": point_per_unit,
+            "unit": unit
+        }
+    }), 200
 
 # 🟢 Menghapus jenis sampah
 @app.route('/admin/trash-types/<int:trash_id>', methods=['DELETE'])
@@ -285,7 +329,6 @@ def delete_trash_type(trash_id):
     cursor.execute("DELETE FROM waste_categories WHERE id=%s", (trash_id,))
     conn.commit()
     conn.close()
-
     return jsonify({"message": "Jenis sampah berhasil dihapus"}), 200
 
 
@@ -304,9 +347,7 @@ def get_trash_types():
             trash["picture"] = trash["cloudinary_url"]
         else:  # Jika tidak ada, gunakan gambar lokal
             trash["picture"] = f"/static/uploads/{trash['picture']}" if trash["picture"] else None
-
     return jsonify(trash_types)
-
 
 
 # 📱 Endpoint Mobile App
@@ -317,13 +358,15 @@ def register():
     username = data.get("username")
     email = data.get("email")
     password = data.get("password")
+
     if not username or not email or not password:
         return jsonify({"message": "Harap isi semua field!"}), 400
+
     connection = get_db_connection()
     cursor = connection.cursor()
 
     # Cek apakah email sudah terdaftar
-    cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
+    cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
     existing_user = cursor.fetchone()
     if existing_user:
         cursor.close()
@@ -333,44 +376,92 @@ def register():
     # Hash password sebelum disimpan
     hashed_password = bcrypt.generate_password_hash(password).decode("utf-8")
 
-    cursor.execute("INSERT INTO users (username, email, password) VALUES (%s, %s, %s)",
-                   (username, email, hashed_password))
-    connection.commit()
+    try:
+        # Simpan user ke tabel users
+        cursor.execute("INSERT INTO users (username, email, password) VALUES (%s, %s, %s)", 
+                       (username, email, hashed_password))
+        connection.commit()
 
-    cursor.close()
-    connection.close()
-    return jsonify({"message": "Registrasi berhasil!"}), 201
+        # Ambil `id` user yang baru saja dibuat
+        cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
+        new_user = cursor.fetchone()
+        user_id = new_user[0]
+
+        # Insert data default ke users_data
+        cursor.execute(
+            "INSERT INTO users_data (user_id, full_name, phone_number, address, profile_picture) VALUES (%s, '', '', '', NULL)", 
+            (user_id,)
+        )
+        connection.commit()
+
+        message = "Registrasi berhasil!"
+        success = True
+    except Exception as e:
+        connection.rollback()
+        message = f"⚠️ Error saat registrasi: {e}"
+        success = False
+    finally:
+        cursor.close()
+        connection.close()
+
+    return jsonify({"message": message, "success": success}), 201 if success else 500
+
 
 # 🟢 Endpoint Login User Mobile App (Bisa dengan Email atau Username)
 @app.route("/login", methods=["POST"])
 def login():
     data = request.json
-    identifier = data.get("identifier")  # Bisa berupa email atau username
+    identifier = data.get("identifier")  # Bisa email atau username
     password = data.get("password")
-    print(f"Login attempt: {identifier}")  # Debugging
+
     connection = get_db_connection()
     cursor = connection.cursor(dictionary=True)
+
     # Cari user berdasarkan email ATAU username
     cursor.execute(
         "SELECT * FROM users WHERE email = %s OR username = %s", 
         (identifier, identifier)
     )
     user = cursor.fetchone()
+
+    if not user:
+        cursor.close()
+        connection.close()
+        return jsonify({"message": "Email/Username atau password salah!", "success": False}), 401
+
+    if not bcrypt.check_password_hash(user["password"], password):
+        cursor.close()
+        connection.close()
+        return jsonify({"message": "Email/Username atau password salah!", "success": False}), 401
+
+    user_id = user["id"]
+
+    # ✅ Cek apakah user sudah ada di tabel `users_data`
+    cursor.execute("SELECT user_id FROM users_data WHERE user_id = %s", (user_id,))
+    user_data = cursor.fetchone()
+
+    if not user_data:
+        print(f"ℹ️ User {user_id} belum ada di users_data, akan dibuat otomatis.")
+        try:
+            cursor.execute(
+                "INSERT INTO users_data (user_id, full_name, phone_number, address, profile_picture) VALUES (%s, '', '', '', NULL)",
+                (user_id,)
+            )
+            connection.commit()
+            print(f"✅ User {user_id} berhasil ditambahkan ke users_data!")
+        except Exception as e:
+            print(f"❌ Gagal menambahkan user {user_id} ke users_data: {e}")
+            connection.rollback()  # Batalkan transaksi jika gagal
     cursor.close()
     connection.close()
-    if not user:
-        print("⚠️ Akun tidak ditemukan!")
-        return jsonify({"message": "Email/Username atau password salah!"}), 401
-    if not bcrypt.check_password_hash(user["password"], password):
-        print("⚠️ Password salah!")
-        return jsonify({"message": "Email/Username atau password salah!"}), 401
-    print(f"✅ Login berhasil untuk {user['username']} (ID: {user['id']})")
     return jsonify({
         "message": "Login berhasil!",
-        "user_id": user["id"],
+        "success": True,
+        "user_id": user_id,
         "username": user["username"],
         "email": user["email"]
     }), 200
+
 
 # 🟢 Endpoint Mobile App Melihat jenis sampah
 from decimal import Decimal
@@ -410,9 +501,10 @@ def uploaded_file(filename):
     conn.close()
 
     if result and result["cloudinary_url"]:
-        return jsonify({"cloudinary_url": result["cloudinary_url"]})
-    
+        return redirect(result["cloudinary_url"])  # Redirect ke Cloudinary
+
     return jsonify({"error": "File not found"}), 404
+
 
 # 🔵 Endpoint untuk mengambil data user berdasarkan userId
 @app.route("/users/<int:user_id>", methods=["GET"])
@@ -450,6 +542,108 @@ def get_user(user_id):
 @app.route('/static/uploads/<path:filename>')
 def serve_uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+
+# ✅ Endpoint: Ambil data profil dari tabel `users_data`
+@app.route("/get-profile/<int:user_id>", methods=["GET"])
+def get_profile(user_id):
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Gagal terhubung ke database"}), 500
+    try:
+        cur = conn.cursor(dictionary=True)  # ✅ Gunakan dictionary=True agar hasil query lebih rapi
+        cur.execute("SELECT full_name, phone_number, address, profile_picture FROM users_data WHERE user_id = %s", (user_id,))
+        user = cur.fetchone()
+        cur.close()
+
+        if user:
+            return jsonify({
+                "success": True,
+                "data": {
+                    "full_name": user["full_name"] or "",
+                    "phone_number": user["phone_number"] or "",
+                    "address": user["address"] or "",
+                    "profile_picture": f"/{UPLOAD_FOLDER}/{user['profile_picture']}" if user["profile_picture"] else None
+                }
+            })
+        else:
+            # 🟢 Jika user belum memiliki profil, buat data default
+            return jsonify({
+                "success": True,
+                "data": {
+                    "full_name": "",
+                    "phone_number": "",
+                    "address": "",
+                    "profile_picture": None
+                }
+            })
+    except mysql.connector.Error as e:
+        return jsonify({"error": f"⚠️ Error saat mengambil data: {e}"}), 500
+    finally:
+        conn.close()
+
+# ✅ Endpoint: Update profil pengguna di tabel `users_data`
+@app.route("/update-profile", methods=["PUT"])
+def update_profile():
+    user_id = request.form.get("user_id")
+    full_name = request.form.get("full_name", "").strip()
+    phone_number = request.form.get("phone_number", "").strip()
+    address = request.form.get("address", "").strip()
+
+    if not user_id or not user_id.isdigit():
+        return jsonify({"error": "User ID tidak valid"}), 400
+    user_id = int(user_id)
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Gagal terhubung ke database"}), 500
+
+    try:
+        cur = conn.cursor(dictionary=True)
+
+        # 🟢 Cek apakah user ada di `users_data`
+        cur.execute("SELECT profile_picture FROM users_data WHERE user_id = %s", (user_id,))
+        user_data = cur.fetchone()
+
+        if not user_data:
+            cur.close()
+            conn.close()
+            return jsonify({"error": "User tidak ditemukan"}), 404
+
+        profile_picture = user_data["profile_picture"]  # Simpan nama file lama jika ada
+
+        # ✅ Jika ada file gambar baru, validasi dan simpan
+        if "profile_picture" in request.files:
+            file = request.files["profile_picture"]
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+                file.save(file_path)
+                
+                # 🔹 Hapus file lama jika ada
+                if profile_picture:
+                    old_file_path = os.path.join(app.config["UPLOAD_FOLDER"], profile_picture)
+                    if os.path.exists(old_file_path):
+                        os.remove(old_file_path)
+
+                profile_picture = filename  # Simpan nama file baru
+
+        # 🔹 Update data di database
+        cur.execute(
+            "UPDATE users_data SET full_name=%s, phone_number=%s, address=%s, profile_picture=%s WHERE user_id=%s",
+            (full_name, phone_number, address, profile_picture, user_id)
+        )
+
+        conn.commit()
+        return jsonify({"message": "✅ Profil berhasil diperbarui!"}), 200
+
+    except mysql.connector.Error as e:
+        return jsonify({"error": f"⚠️ Error saat update profil: {e}"}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+
 
 # 🟢 Run the App
 if __name__ == "__main__":
