@@ -554,8 +554,9 @@ def get_profile(user_id):
     conn = get_db_connection()
     if not conn:
         return jsonify({"error": "Gagal terhubung ke database"}), 500
+
     try:
-        cur = conn.cursor(dictionary=True)
+        cur = conn.cursor()
         cur.execute("SELECT full_name, phone_number, address, profile_picture FROM users_data WHERE user_id = %s", (user_id,))
         user = cur.fetchone()
         cur.close()
@@ -564,10 +565,10 @@ def get_profile(user_id):
             return jsonify({
                 "success": True,
                 "data": {
-                    "full_name": user["full_name"] or "",
-                    "phone_number": user["phone_number"] or "",
-                    "address": user["address"] or "",
-                    "profile_picture": user["profile_picture"] if user["profile_picture"] else None
+                    "full_name": user[0],  # Akses langsung tuple
+                    "phone_number": user[1],
+                    "address": user[2],
+                    "profile_picture": user[3]
                 }
             })
         else:
@@ -580,10 +581,11 @@ def get_profile(user_id):
                     "profile_picture": None
                 }
             })
-    except mysql.connector.Error as e:
-        return jsonify({"error": f"⚠️ Error saat mengambil data: {e}"}), 500
+    except Exception as e:
+        return jsonify({"error": "⚠️ Terjadi kesalahan"}), 500
     finally:
         conn.close()
+
 
 # ✅ Endpoint: Update profil pengguna di tabel `users_data`
 @app.route("/update-profile", methods=["PUT"])
@@ -592,6 +594,7 @@ def update_profile():
     full_name = request.form.get("full_name", "").strip()
     phone_number = request.form.get("phone_number", "").strip()
     address = request.form.get("address", "").strip()
+    profile_picture = request.files.get("profile_picture")  # ⏩ Langsung ambil jika ada
 
     if not user_id or not user_id.isdigit():
         return jsonify({"error": "User ID tidak valid"}), 400
@@ -600,48 +603,51 @@ def update_profile():
     conn = get_db_connection()
     if not conn:
         return jsonify({"error": "Gagal terhubung ke database"}), 500
-    
+
     try:
-        cur = conn.cursor(dictionary=True)
-        
-        # 🟢 Cek apakah user ada di `users_data`
+        cur = conn.cursor()
+
+        # 🟢 Ambil data user (hanya profile_picture)
         cur.execute("SELECT profile_picture FROM users_data WHERE user_id = %s", (user_id,))
         user_data = cur.fetchone()
-        
+
         if not user_data:
             cur.close()
             conn.close()
             return jsonify({"error": "User tidak ditemukan"}), 404
 
-        profile_picture_url = user_data["profile_picture"]  # Simpan URL lama jika ada
+        profile_picture_url = user_data[0]  # ⏩ Ambil URL gambar lama jika ada
 
         # ✅ Jika ada file gambar baru, upload ke Cloudinary
-        if "profile_picture" in request.files:
-            file = request.files["profile_picture"]
-            if file:
-                upload_result = cloudinary.uploader.upload(file, folder="user_profiles/")
-                
-                # 🔹 Hapus gambar lama jika ada
-                if profile_picture_url:
-                    public_id = profile_picture_url.split("/")[-1].split(".")[0]
-                    cloudinary.uploader.destroy(f"user_profiles/{public_id}")
-                
-                profile_picture_url = upload_result["secure_url"]  # Simpan URL gambar baru
+        if profile_picture:
+            upload_result = cloudinary.uploader.upload(profile_picture, folder="user_profiles/")
+            new_profile_picture_url = upload_result["secure_url"]
 
-        # 🔹 Update data di database
-        cur.execute(
-            "UPDATE users_data SET full_name=%s, phone_number=%s, address=%s, profile_picture=%s WHERE user_id=%s",
-            (full_name, phone_number, address, profile_picture_url, user_id)
-        )
-        
+            # 🔹 Hapus gambar lama jika ada
+            if profile_picture_url:
+                public_id = profile_picture_url.split("/")[-1].split(".")[0]
+                cloudinary.uploader.destroy(f"user_profiles/{public_id}")
+
+            profile_picture_url = new_profile_picture_url  # Update ke gambar baru
+
+        # 🔹 Update data di database (hanya update profile_picture jika berubah)
+        cur.execute("""
+            UPDATE users_data 
+            SET full_name=%s, phone_number=%s, address=%s, profile_picture=%s 
+            WHERE user_id=%s
+        """, (full_name, phone_number, address, profile_picture_url, user_id))
+
         conn.commit()
+
         return jsonify({"message": "✅ Profil berhasil diperbarui!", "profile_picture_url": profile_picture_url}), 200
-    
+
     except mysql.connector.Error as e:
         return jsonify({"error": f"⚠️ Error saat update profil: {e}"}), 500
+
     finally:
         cur.close()
         conn.close()
+
 
 # 🟢 Run the App
 if __name__ == "__main__":
