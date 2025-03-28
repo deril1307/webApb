@@ -413,29 +413,24 @@ def login():
     data = request.json
     identifier = data.get("identifier")  # Bisa email atau username
     password = data.get("password")
-
     connection = get_db_connection()
     cursor = connection.cursor(dictionary=True)
-
     # Cari user berdasarkan email ATAU username
     cursor.execute(
         "SELECT * FROM users WHERE email = %s OR username = %s", 
         (identifier, identifier)
     )
     user = cursor.fetchone()
-
     if not user:
         cursor.close()
         connection.close()
         return jsonify({"message": "Email/Username atau password salah!", "success": False}), 401
-
     if not bcrypt.check_password_hash(user["password"], password):
         cursor.close()
         connection.close()
         return jsonify({"message": "Email/Username atau password salah!", "success": False}), 401
-
     user_id = user["id"]
-
+    
     # ✅ Cek apakah user sudah ada di tabel `users_data`
     cursor.execute("SELECT user_id FROM users_data WHERE user_id = %s", (user_id,))
     user_data = cursor.fetchone()
@@ -546,7 +541,6 @@ def serve_uploaded_file(filename):
     if not os.path.exists(file_path):
         abort(404)  # Kembalikan error 404 jika file tidak ditemukan
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
 
 # ✅ Endpoint: Ambil data profil dari tabel `users_data`
 @app.route("/get-profile/<int:user_id>", methods=["GET"])
