@@ -539,8 +539,12 @@ def get_user(user_id):
         print(f"⚠️ Error: {str(e)}")  # Debugging
         return jsonify({"error": str(e)}), 500
     
+
 @app.route('/static/uploads/<path:filename>')
 def serve_uploaded_file(filename):
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    if not os.path.exists(file_path):
+        abort(404)  # Kembalikan error 404 jika file tidak ditemukan
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
@@ -551,7 +555,7 @@ def get_profile(user_id):
     if not conn:
         return jsonify({"error": "Gagal terhubung ke database"}), 500
     try:
-        cur = conn.cursor(dictionary=True)  # ✅ Gunakan dictionary=True agar hasil query lebih rapi
+        cur = conn.cursor(dictionary=True)
         cur.execute("SELECT full_name, phone_number, address, profile_picture FROM users_data WHERE user_id = %s", (user_id,))
         user = cur.fetchone()
         cur.close()
@@ -563,11 +567,10 @@ def get_profile(user_id):
                     "full_name": user["full_name"] or "",
                     "phone_number": user["phone_number"] or "",
                     "address": user["address"] or "",
-                    "profile_picture": f"/{UPLOAD_FOLDER}/{user['profile_picture']}" if user["profile_picture"] else None
+                    "profile_picture": user["profile_picture"] if user["profile_picture"] else None
                 }
             })
         else:
-            # 🟢 Jika user belum memiliki profil, buat data default
             return jsonify({
                 "success": True,
                 "data": {
@@ -597,53 +600,48 @@ def update_profile():
     conn = get_db_connection()
     if not conn:
         return jsonify({"error": "Gagal terhubung ke database"}), 500
-
+    
     try:
         cur = conn.cursor(dictionary=True)
-
+        
         # 🟢 Cek apakah user ada di `users_data`
         cur.execute("SELECT profile_picture FROM users_data WHERE user_id = %s", (user_id,))
         user_data = cur.fetchone()
-
+        
         if not user_data:
             cur.close()
             conn.close()
             return jsonify({"error": "User tidak ditemukan"}), 404
 
-        profile_picture = user_data["profile_picture"]  # Simpan nama file lama jika ada
+        profile_picture_url = user_data["profile_picture"]  # Simpan URL lama jika ada
 
-        # ✅ Jika ada file gambar baru, validasi dan simpan
+        # ✅ Jika ada file gambar baru, upload ke Cloudinary
         if "profile_picture" in request.files:
             file = request.files["profile_picture"]
-            if file and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-                file.save(file_path)
+            if file:
+                upload_result = cloudinary.uploader.upload(file, folder="user_profiles/")
                 
-                # 🔹 Hapus file lama jika ada
-                if profile_picture:
-                    old_file_path = os.path.join(app.config["UPLOAD_FOLDER"], profile_picture)
-                    if os.path.exists(old_file_path):
-                        os.remove(old_file_path)
-
-                profile_picture = filename  # Simpan nama file baru
+                # 🔹 Hapus gambar lama jika ada
+                if profile_picture_url:
+                    public_id = profile_picture_url.split("/")[-1].split(".")[0]
+                    cloudinary.uploader.destroy(f"user_profiles/{public_id}")
+                
+                profile_picture_url = upload_result["secure_url"]  # Simpan URL gambar baru
 
         # 🔹 Update data di database
         cur.execute(
             "UPDATE users_data SET full_name=%s, phone_number=%s, address=%s, profile_picture=%s WHERE user_id=%s",
-            (full_name, phone_number, address, profile_picture, user_id)
+            (full_name, phone_number, address, profile_picture_url, user_id)
         )
-
+        
         conn.commit()
-        return jsonify({"message": "✅ Profil berhasil diperbarui!"}), 200
-
+        return jsonify({"message": "✅ Profil berhasil diperbarui!", "profile_picture_url": profile_picture_url}), 200
+    
     except mysql.connector.Error as e:
         return jsonify({"error": f"⚠️ Error saat update profil: {e}"}), 500
     finally:
         cur.close()
         conn.close()
-
-
 
 # 🟢 Run the App
 if __name__ == "__main__":
