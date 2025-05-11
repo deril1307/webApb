@@ -1,3 +1,4 @@
+# type: ignore
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
@@ -9,8 +10,9 @@ from flask import send_from_directory
 from urllib.parse import quote as url_quote
 import cloudinary
 import cloudinary.uploader
+from datetime import datetime
 
-# Load environment variables
+# Load file env
 load_dotenv()
 # Flask Configuration
 app = Flask(__name__)
@@ -36,8 +38,6 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-# Database Configuration
-# MySQL Database Configuration (Aiven)
 # Konfigurasi database menggunakan environment variables
 DATABASE_CONFIG = {
     "host": os.getenv("DB_HOST"),
@@ -64,27 +64,27 @@ def get_db_connection():
 
         
 # 💻 Endpoint Web
-# 🟢 Landing Page Route
+# 🟢 Landing Page
 @app.route("/")
 def home():
     some_data = {"message": "Welcome to TrashTech!"}
-    return render_template("index.html")  # Halaman utama perkenalan
+    return render_template("index.html")  
 
 
 # 🟢 WebAdmin Login Route with Session
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     if request.method == "GET":
-        return render_template("login.html")  # Tampilkan halaman login
+        return render_template("login.html")  
     data = request.json
     email = data.get("email")
     password = data.get("password")
     connection = get_db_connection()
-    cursor = connection.cursor(dictionary=True)
+    cursor = connection.cursor(dictionary=True) # type: ignore
     cursor.execute("SELECT * FROM admin WHERE email = %s", (email,))
     admin = cursor.fetchone()
     cursor.close()
-    connection.close()
+    connection.close() # type: ignore
     if not admin or not bcrypt.check_password_hash(admin["password"], password):
         return jsonify({"message": "Email atau password salah"}), 401
     session["admin_id"] = admin["id"]  # Simpan ID admin di session
@@ -93,7 +93,7 @@ def admin_login():
 # 🟢 Web Admin Logout Route
 @app.route("/admin/logout", methods=["POST"])
 def admin_logout():
-    session.pop("admin_id", None)  # Hapus session
+    session.pop("admin_id", None)  
     return jsonify({"message": "Logout berhasil!"}), 200
 
 # 🟢 Web Protected Admin Route (Dashboard)
@@ -103,15 +103,15 @@ def admin_dashboard():
         return jsonify({"message": "Unauthorized"}), 401
     # Ambil nama admin dari database berdasarkan session
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(dictionary=True) # type: ignore
     cursor.execute("SELECT name FROM admin WHERE id = %s", (session["admin_id"],))
     admin = cursor.fetchone()
-    conn.close()
+    conn.close() # type: ignore
     if not admin:
         return jsonify({"message": "Admin not found"}), 404
     return render_template("dashboard.html", admin_name=admin["name"])
 
-# 🟢 Web Setup Default Admin Route
+# 🟢 Web Setup untuk membuat akun admin melalu post man
 @app.route("/setup", methods=["POST"])
 def setup():
     data = request.json
@@ -143,7 +143,7 @@ def get_users():
         return jsonify({"message": "Unauthorized"}), 401
     connection = get_db_connection()
     cursor = connection.cursor(dictionary=True)
-    cursor.execute("SELECT id, username, email FROM users")  # Sesuaikan dengan tabel di database
+    cursor.execute("SELECT id, username, email FROM users")  
     users = cursor.fetchall()
     cursor.close()
     connection.close()
@@ -275,7 +275,7 @@ def update_trash_type(trash_id):
                 if os.path.exists(old_path):
                     os.remove(old_path)
 
-            picture = filename  # Save new filename
+            picture = filename  
         else:
             conn.close()
             return jsonify({"error": "Format gambar tidak didukung"}), 400
@@ -322,7 +322,7 @@ def delete_trash_type(trash_id):
             if os.path.exists(local_path):
                 os.remove(local_path)  # Hapus dari lokal
 
-            # Hapus dari Cloudinary (Opsional)
+            # Hapus dari Cloudinary
             cloudinary.uploader.destroy(picture)
 
     # Hapus data dari database
@@ -468,14 +468,14 @@ def get_kategori_sampah():
         cursor.execute("SELECT * FROM waste_categories")  
         data = cursor.fetchall()
 
-        # ✅ Convert Decimal ke float agar bisa diterima di Flutter
+        # Convert Decimal ke float agar bisa diterima di Flutter
         for item in data:
             for key, value in item.items():
                 if isinstance(value, Decimal):
-                    item[key] = float(value)  # Bisa juga pakai str(value)
+                    item[key] = float(value)  
         cursor.close()
         conn.close()
-        print("Response Data:", data)  # Debugging
+        print("Response Data:", data)  
         return jsonify(data)  
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -608,7 +608,6 @@ def update_profile():
             cur.close()
             conn.close()
             return jsonify({"error": "User tidak ditemukan"}), 404
-
         profile_picture_url = user_data["profile_picture"]  # Simpan URL lama jika ada
 
         # ✅ Jika ada file gambar baru, upload ke Cloudinary
@@ -639,7 +638,49 @@ def update_profile():
         cur.close()
         conn.close()
 
+@app.route('/setor-sampah', methods=['POST'])
+def setor_sampah():
+    data = request.get_json()
+
+    # Validasi data yang diterima
+    if not data or 'user_id' not in data or 'waste_id' not in data or 'weight' not in data:
+        return jsonify({'error': 'Data tidak lengkap'}), 400
+
+    user_id = data['user_id']
+    waste_id = data['waste_id']
+    weight = data['weight']
+
+    # Menghitung poin yang didapat
+    conn = get_db_connection()  # Get the database connection
+    cursor = conn.cursor()
+    cursor.execute('SELECT point_per_unit FROM waste_categories WHERE id = %s', (waste_id,))
+    kategori = cursor.fetchone()
+    conn.close()  
+
+    if not kategori:
+        return jsonify({'error': 'Kategori sampah tidak ditemukan'}), 404
+
+    poin_per_unit = kategori[0]
+    points_earned = int(weight / 1000 * poin_per_unit)  
+
+    # Menyimpan data setor sampah ke dalam tabel
+    conn = get_db_connection()  # Get the database connection again
+    cursor = conn.cursor()
+    cursor.execute(
+        'INSERT INTO setor_sampah (user_id, waste_id, weight, points_earned, date) VALUES (%s, %s, %s, %s, %s)',
+        (user_id, waste_id, weight, points_earned, datetime.now())
+    )
+    conn.commit()
+    conn.close()  # Always close the connection after use
+
+    return jsonify({
+        'message': 'Setor sampah berhasil',
+        'points_earned': points_earned,
+        'total_weight': weight
+    }), 200
+
+# tes
 # 🟢 Run the App
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 5000))  # Gunakan PORT dari environment variable
+    port = int(os.getenv("PORT", 5000)) 
     app.run(port=port, debug=False) 
