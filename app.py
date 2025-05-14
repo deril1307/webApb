@@ -505,15 +505,12 @@ def uploaded_file(filename):
 @app.route("/users/<int:user_id>", methods=["GET"])
 def get_user(user_id):
     print(f"🔍 GET /users/{user_id} dipanggil")  # Debugging
-
     try:
         conn = get_db_connection()
         if conn is None:
             print("❌ Database connection gagal")
             return jsonify({"error": "Database connection error"}), 500
-
         cursor = conn.cursor(dictionary=True)
-
         # Debug query yang dijalankan
         query = "SELECT id, username, points, balance FROM users WHERE id = %s"
         print(f"🔎 Query: {query} | Params: {user_id}")
@@ -641,8 +638,6 @@ def update_profile():
 @app.route('/setor-sampah', methods=['POST'])
 def setor_sampah():
     data = request.get_json()
-
-    # Validasi data yang diterima
     if not data or 'user_id' not in data or 'waste_id' not in data or 'weight' not in data:
         return jsonify({'error': 'Data tidak lengkap'}), 400
 
@@ -650,28 +645,33 @@ def setor_sampah():
     waste_id = data['waste_id']
     weight = data['weight']
 
-    # Menghitung poin yang didapat
-    conn = get_db_connection()  # Get the database connection
+    conn = get_db_connection()
     cursor = conn.cursor()
+
+    # Ambil poin per unit dari kategori sampah
     cursor.execute('SELECT point_per_unit FROM waste_categories WHERE id = %s', (waste_id,))
     kategori = cursor.fetchone()
-    conn.close()  
-
     if not kategori:
+        conn.close()
         return jsonify({'error': 'Kategori sampah tidak ditemukan'}), 404
 
     poin_per_unit = kategori[0]
-    points_earned = int(weight / 1000 * poin_per_unit)  
+    points_earned = int(weight / 1000 * poin_per_unit)
 
-    # Menyimpan data setor sampah ke dalam tabel
-    conn = get_db_connection()  # Get the database connection again
-    cursor = conn.cursor()
+    # Simpan data setor sampah
     cursor.execute(
         'INSERT INTO setor_sampah (user_id, waste_id, weight, points_earned, date) VALUES (%s, %s, %s, %s, %s)',
         (user_id, waste_id, weight, points_earned, datetime.now())
     )
+
+    # Update total poin user (tambah poin baru ke poin yang lama)
+    cursor.execute(
+        'UPDATE users SET points = points + %s WHERE id = %s',
+        (points_earned, user_id)
+    )
+
     conn.commit()
-    conn.close()  # Always close the connection after use
+    conn.close()
 
     return jsonify({
         'message': 'Setor sampah berhasil',
