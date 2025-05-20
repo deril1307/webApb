@@ -634,7 +634,7 @@ def update_profile():
     finally:
         cur.close()
         conn.close()
-
+# ✅ Endpoint: setor sampah pengguna di tabel `setor_sampah`
 @app.route('/setor-sampah', methods=['POST'])
 def setor_sampah():
     data = request.get_json()
@@ -678,6 +678,64 @@ def setor_sampah():
         'points_earned': points_earned,
         'total_weight': weight
     }), 200
+
+# Membuat fungsi (update saldo) ketika di tarik saldonya
+@app.route('/update_saldo', methods=['POST'])
+def update_saldo():
+    data = request.json
+    user_id = data.get('user_id')
+    amount = data.get('amount')
+
+    if not user_id or amount is None:
+        return jsonify({'status': 'error', 'message': 'Missing data'}), 400
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Ambil balance saat ini
+        cursor.execute("SELECT balance FROM users WHERE id = %s", (user_id,))
+        result = cursor.fetchone()
+
+        if not result:
+            return jsonify({'status': 'error', 'message': 'User not found'}), 404
+
+        current_balance = result[0]
+
+        if amount > current_balance:
+            return jsonify({'status': 'error', 'message': 'Insufficient balance'}), 400
+
+        new_balance = current_balance - amount
+
+        cursor.execute("UPDATE users SET balance = %s WHERE id = %s", (new_balance, user_id))
+        conn.commit()
+
+        return jsonify({'status': 'success', 'new_balance': new_balance}), 200
+
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+    finally:
+        cursor.close()
+        conn.close()
+
+# leaderboard
+
+# GET: Ambil leaderboard
+@app.route('/leaderboard', methods=['GET'])
+def get_leaderboard():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT username, points 
+        FROM users
+        ORDER BY points DESC
+    """)
+    results = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return jsonify(results), 200
 
 # tes
 # 🟢 Run the App
