@@ -23,21 +23,40 @@ document.getElementById("logoutBtn").addEventListener("click", async function ()
 
 async function loadUsers() {
   try {
-    const response = await fetch("/admin/users", { method: "GET", credentials: "include" });
+    const response = await fetch("/admin/users", {
+      method: "GET",
+      credentials: "include",
+    });
+
     if (!response.ok) throw new Error("Gagal mengambil data pengguna");
 
     const users = await response.json();
-    const userTableBody = document.getElementById("userTableBody");
-    userTableBody.innerHTML = "";
+    const tbody = document.getElementById("userTableBody");
+    tbody.innerHTML = "";
+
+    let totalPoints = 0;
+    let totalBalance = 0;
 
     users.forEach((user) => {
-      userTableBody.innerHTML += `
-                      <tr>
-                          <td>${user.username}</td>
-                          <td>${user.email}</td>
-                          <td><button onclick="deleteUser(${user.id})" class="btn btn-danger btn-sm">Hapus</button></td>
-                      </tr>`;
+      const points = user.points || 0;
+      const balance = user.balance || 0;
+
+      totalPoints += points;
+      totalBalance += balance;
+
+      tbody.innerHTML += `
+        <tr>
+          <td>${user.username}</td>
+          <td>${user.email}</td>
+          <td>${points}</td>
+          <td>Rp ${balance.toLocaleString("id-ID")}</td>
+          <td><button onclick="deleteUser(${user.id})" class="btn btn-danger btn-sm">Hapus</button></td>
+        </tr>`;
     });
+
+    document.getElementById("totalUsers").textContent = users.length;
+    document.getElementById("totalPoints").textContent = totalPoints;
+    document.getElementById("totalBalance").textContent = "Rp " + totalBalance.toLocaleString("id-ID");
   } catch (error) {
     console.error("Error loading users:", error);
   }

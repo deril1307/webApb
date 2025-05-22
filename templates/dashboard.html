@@ -13,6 +13,18 @@
         background: #36522b;
         color: white;
         padding-top: 20px;
+        z-index: 1000;
+      }
+
+      .sidebar a {
+        display: block;
+        color: white;
+        padding: 10px;
+        text-decoration: none;
+      }
+
+      .sidebar a:hover {
+        background: #098a3b;
       }
 
       .logout-btn {
@@ -25,25 +37,29 @@
         color: white;
         border-radius: 5px;
         cursor: pointer;
+        z-index: 1100;
       }
 
       .logout-btn:hover {
         background-color: darkred;
       }
 
-      .sidebar a {
-        display: block;
-        color: white;
-        padding: 10px;
-        text-decoration: none;
-      }
-      .sidebar a:hover {
-        background: #098a3b;
-      }
-
       .content {
         margin-left: 260px;
         padding: 20px;
+      }
+
+      .stats-container {
+        display: flex;
+        overflow-x: auto;
+        gap: 1rem;
+        padding: 10px 0;
+        scrollbar-width: thin;
+      }
+
+      .stats-card {
+        min-width: 200px;
+        flex: 0 0 auto;
       }
 
       @media (max-width: 768px) {
@@ -64,6 +80,11 @@
           margin-left: 0;
           padding: 15px;
         }
+
+        .stats-container {
+          flex-direction: column;
+          overflow-x: visible;
+        }
       }
     </style>
   </head>
@@ -78,25 +99,50 @@
         <hr />
       </div>
       <button id="logoutBtn" class="btn btn-danger position-absolute top-0 end-0 m-3">Logout</button>
+
       <!-- Main Content -->
       <div class="content container mt-5">
-        <div class="card p-4">
-          <h1 class="text-center">Selamat datang admin </h1>
+        <div class="card p-4 shadow-sm">
+          <h1 class="text-center mb-4">Selamat datang Admin</h1>
+
           <!-- Manajemen Pengguna -->
           <div id="manajemenPengguna">
             <h2 class="mt-4">Manajemen Data Pengguna</h2>
-            <table class="table table-bordered mt-3">
-              <thead class="table-dark">
-                <tr>
-                  <th>Username</th>
-                  <th>Email</th>
-                  <th>Aksi</th>
-                </tr>
-              </thead>
-              <tbody id="userTableBody">
-                <!-- Data pengguna akan dimuat di sini -->
-              </tbody>
-            </table>
+
+            <!-- Scrollable Stats -->
+            <div class="stats-container mt-3">
+              <div class="card stats-card text-center shadow-sm p-3">
+                <strong>Total Pengguna</strong>
+                <h4 id="totalUsers">0</h4>
+              </div>
+              <div class="card stats-card text-center shadow-sm p-3">
+                <strong>Total Poin</strong>
+                <h4 id="totalPoints">0</h4>
+              </div>
+              <div class="card stats-card text-center shadow-sm p-3">
+                <strong>Total Saldo</strong>
+                <h4 id="totalBalance">Rp 0</h4>
+              </div>
+            </div>
+
+            <div class="card mt-4 shadow-sm">
+              <div class="card-body">
+                <table class="table table-bordered">
+                  <thead class="table-dark">
+                    <tr>
+                      <th>Username</th>
+                      <th>Email</th>
+                      <th>Poin</th>
+                      <th>Saldo</th>
+                      <th>Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="userTableBody">
+                    <!-- Data pengguna akan dimuat di sini -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
 
           <!-- Data Sampah -->
@@ -104,57 +150,76 @@
             <h2 class="mt-4">Data Sampah</h2>
             <button class="btn btn-success mb-3" onclick="showAddTrashModal()">Tambah Jenis Sampah</button>
 
-            <table class="table table-bordered">
-              <thead class="table-dark">
-                <tr>
-                  <th>Jenis Sampah</th>
-                  <th>Poin</th>
-                  <th>Satuan</th>
-                  <th>Gambar</th>
-                  <th>Deskripsi</th>
-                  <th>Aksi</th>
-                </tr>
-              </thead>
-              <tbody id="trashTableBody">
-                <!-- Data jenis sampah akan dimuat di sini -->
-              </tbody>
-            </table>
+            <div class="card shadow-sm">
+              <div class="card-body">
+                <table class="table table-bordered">
+                  <thead class="table-dark">
+                    <tr>
+                      <th>Jenis Sampah</th>
+                      <th>Poin</th>
+                      <th>Satuan</th>
+                      <th>Gambar</th>
+                      <th>Deskripsi</th>
+                      <th>Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="trashTableBody">
+                    <!-- Data jenis sampah akan dimuat di sini -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
 
           <!-- Modal Tambah/Edit Jenis Sampah -->
-          <div id="trashModal" style="display: none">
+          <div id="trashModal" style="display: none" class="card p-4 mt-4 shadow-sm">
             <h3 id="modalTitle">Tambah Jenis Sampah</h3>
             <form id="trashForm" enctype="multipart/form-data">
-              <input type="hidden" id="trashId">
-              <label>Jenis Sampah:</label>
-              <input type="text" id="trashName" class="form-control">
-          
-              <label>Poin per Unit:</label>
-              <input type="number" id="trashPointPerUnit" class="form-control">
-          
-              <label>Satuan:</label>
-              <select id="trashUnit" class="form-control">
+              <input type="hidden" id="trashId" />
+              <div class="mb-3">
+                <label class="form-label">Jenis Sampah:</label>
+                <input type="text" id="trashName" class="form-control" />
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Poin per Unit:</label>
+                <input type="number" id="trashPointPerUnit" class="form-control" />
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Satuan:</label>
+                <select id="trashUnit" class="form-control">
                   <option value="kg">kg</option>
                   <option value="g">g</option>
-              </select>
-          
-              <label>Gambar:</label>
-              <input type="file" id="trashPicture" class="form-control">
-          
-              <label>Deskripsi:</label>
-              <textarea id="trashDescription" class="form-control"></textarea>
-          
-              <button type="button" onclick="saveTrash()" class="btn btn-primary mt-3">Simpan</button>
-          </form>
-          
+                </select>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Gambar:</label>
+                <input type="file" id="trashPicture" class="form-control" />
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Deskripsi:</label>
+                <textarea id="trashDescription" class="form-control"></textarea>
+              </div>
+
+              <button type="button" onclick="saveTrash()" class="btn btn-primary">Simpan</button>
+            </form>
+          </div>
+
           <!-- Grafik Monitoring -->
-          <div id="grafikMonitoring" style="display: none">
+          <div id="grafikMonitoring" style="display: none" class="mt-5">
             <h2 class="mt-4">Grafik Monitoring</h2>
-            <p>Grafik pemantauan akan ditampilkan di sini.</p>
+            <div class="card shadow-sm p-3">
+              <p>Grafik pemantauan akan ditampilkan di sini.</p>
+            </div>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- JavaScript -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   </body>

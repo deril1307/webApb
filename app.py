@@ -141,13 +141,18 @@ def setup():
 def get_users():
     if "admin_id" not in session:
         return jsonify({"message": "Unauthorized"}), 401
+
     connection = get_db_connection()
     cursor = connection.cursor(dictionary=True)
-    cursor.execute("SELECT id, username, email FROM users")  
+
+    # Tambahkan points dan balance ke query
+    cursor.execute("SELECT id, username, email, points, balance FROM users")  
     users = cursor.fetchall()
+
     cursor.close()
     connection.close()
     return jsonify(users), 200
+
 
 # 🟢 Endpoint untuk menghapus pengguna berdasarkan ID
 @app.route("/admin/users/<int:user_id>", methods=["DELETE"])
@@ -556,7 +561,7 @@ def get_profile(user_id):
             return jsonify({
                 "success": True,
                 "data": {
-                    "full_name": user[0],  # Akses langsung tuple
+                    "full_name": user[0],  
                     "phone_number": user[1],
                     "address": user[2],
                     "profile_picture": user[3]
