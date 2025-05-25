@@ -363,14 +363,14 @@ def register():
     username = data.get("username")
     email = data.get("email")
     password = data.get("password")
+    full_name = data.get("full_name")  # Ambil dari request
 
-    if not username or not email or not password:
+    if not username or not email or not password or not full_name:
         return jsonify({"message": "Harap isi semua field!"}), 400
 
     connection = get_db_connection()
     cursor = connection.cursor()
 
-    # Cek apakah email sudah terdaftar
     cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
     existing_user = cursor.fetchone()
     if existing_user:
@@ -378,24 +378,21 @@ def register():
         connection.close()
         return jsonify({"message": "Email sudah digunakan!"}), 400
 
-    # Hash password sebelum disimpan
     hashed_password = bcrypt.generate_password_hash(password).decode("utf-8")
 
     try:
-        # Simpan user ke tabel users
         cursor.execute("INSERT INTO users (username, email, password) VALUES (%s, %s, %s)", 
                        (username, email, hashed_password))
         connection.commit()
 
-        # Ambil `id` user yang baru saja dibuat
         cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
         new_user = cursor.fetchone()
         user_id = new_user[0]
 
-        # Insert data default ke users_data
+        # Gunakan full_name dari frontend
         cursor.execute(
-            "INSERT INTO users_data (user_id, full_name, phone_number, address, profile_picture) VALUES (%s, '', '', '', NULL)", 
-            (user_id,)
+            "INSERT INTO users_data (user_id, full_name, phone_number, address, profile_picture) VALUES (%s, %s, '', '', NULL)", 
+            (user_id, full_name)
         )
         connection.commit()
 
