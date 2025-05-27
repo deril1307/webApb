@@ -11,6 +11,15 @@ from urllib.parse import quote as url_quote
 import cloudinary
 import cloudinary.uploader
 from datetime import datetime
+from flask_mail import Mail, Message
+from random import randint
+from datetime import datetime, timedelta
+from werkzeug.security import generate_password_hash
+import time
+import secrets
+import smtplib
+from flask import request, jsonify
+from email.mime.text import MIMEText
 
 # Load file env
 load_dotenv()
@@ -458,6 +467,68 @@ def login():
         "username": user["username"],
         "email": user["email"]
     }), 200
+
+
+
+reset_tokens = {}  # {email: (token, expiry_time)}
+@app.route('/request-reset-password', methods=['POST'])
+def request_reset_password():
+    data = request.json
+    email = data.get("email")
+
+    connection = get_db_connection()
+    cursor = connection.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
+    user = cursor.fetchone()
+
+    if not user:
+        return jsonify({"message": "Email tidak ditemukan", "success": False}), 404
+
+    token = secrets.token_hex(3).upper()  # Misal: 'A1B2C3'
+    expiry = time.time() + 120  # 120 detik
+
+    reset_tokens[email] = (token, expiry)
+
+    # Kirim token ke email (gunakan SMTP atau API sesungguhnya)
+    message = MIMEText(f"Kode reset password Anda adalah: {token}")
+    message["Subject"] = "Reset Password - TrashTech"
+    message["From"] = "derilwijdan346@gmail.com"
+    message["To"] = email
+
+    try:
+        smtp = smtplib.SMTP("smtp.gmail.com", 587)
+        smtp.starttls()
+        smtp.login("derilwijdan346@gmail.com", "pcou krdl errg sdfp")
+        smtp.sendmail("derilwijdan346@gmail.com", email, message.as_string())
+        smtp.quit()
+    except Exception as e:
+        print(f"Email gagal dikirim: {e}")
+        return jsonify({"message": "Gagal mengirim email", "success": False}), 500
+
+    return jsonify({"message": "Kode reset telah dikirim ke email!", "success": True}), 200
+
+@app.route('/reset-password', methods=['POST'])
+def reset_password():
+    data = request.json
+    email = data.get("email")
+    token = data.get("token")
+    new_password = data.get("new_password")
+
+    saved_token, expiry = reset_tokens.get(email, (None, 0))
+    if saved_token != token or time.time() > expiry:
+        return jsonify({"message": "Token tidak valid atau telah kedaluwarsa", "success": False}), 400
+
+    hashed_pw = bcrypt.generate_password_hash(new_password).decode("utf-8")
+    connection = get_db_connection()
+    cursor = connection.cursor()
+    cursor.execute("UPDATE users SET password = %s WHERE email = %s", (hashed_pw, email))
+    connection.commit()
+    cursor.close()
+    connection.close()
+
+    del reset_tokens[email]
+    return jsonify({"message": "Password berhasil direset", "success": True}), 200
+
 
 
 # 🟢 Endpoint Mobile App Melihat jenis sampah
