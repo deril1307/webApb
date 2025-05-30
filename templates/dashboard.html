@@ -5,220 +5,337 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Admin Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
     <style>
+      body {
+        background-color: #e9ecef; /* Latar belakang lebih lembut */
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+
       .sidebar {
-        width: 250px;
+        width: 260px; /* Sedikit lebih lebar */
         height: 100vh;
         position: fixed;
-        background: #36522b;
+        top: 0;
+        left: 0;
+        background: #2c3e50; /* Warna sidebar lebih gelap dan modern */
         color: white;
-        padding-top: 20px;
+        padding-top: 0; /* Hapus padding default, terapkan ke header */
         z-index: 1000;
+        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+        transition: width 0.3s ease;
+      }
+
+      .sidebar-header {
+        padding: 1.25rem 1.5rem;
+        font-size: 1.6rem;
+        font-weight: bold;
+        text-align: center;
+        color: #ecf0f1;
+        border-bottom: 1px solid #34495e;
       }
 
       .sidebar a {
-        display: block;
-        color: white;
-        padding: 10px;
+        display: flex; /* Untuk perataan ikon */
+        align-items: center; /* Untuk perataan ikon */
+        color: #bdc3c7; /* Warna teks link lebih terang */
+        padding: 15px 25px;
         text-decoration: none;
+        font-size: 1rem;
+        border-bottom: 1px solid #34495e;
+        transition: background-color 0.2s ease, color 0.2s ease;
+      }
+
+      .sidebar a:last-child {
+        border-bottom: none;
       }
 
       .sidebar a:hover {
-        background: #098a3b;
+        background: #3498db; /* Warna hover lebih cerah */
+        color: white;
+      }
+      .sidebar a .bi {
+        margin-right: 12px;
+        font-size: 1.2rem;
       }
 
+      /* Gaya untuk tombol logout - menggunakan kelas .logout-btn Anda */
       .logout-btn {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        background-color: red;
+        position: fixed; /* Diubah menjadi fixed agar tetap di viewport */
+        top: 15px;
+        right: 20px;
+        background-color: #e74c3c; /* Merah seperti Bootstrap danger */
         border: none;
-        padding: 8px 12px;
+        padding: 10px 15px;
         color: white;
         border-radius: 5px;
         cursor: pointer;
-        z-index: 1100;
+        z-index: 1100; /* Pastikan di atas sidebar jika ada skenario tumpang tindih */
+        transition: background-color 0.2s ease;
       }
 
       .logout-btn:hover {
-        background-color: darkred;
+        background-color: #c0392b; /* Merah lebih gelap saat hover */
+      }
+      .logout-btn .bi {
+        margin-right: 5px;
       }
 
       .content {
-        margin-left: 260px;
-        padding: 20px;
+        margin-left: 260px; /* Sesuaikan dengan lebar sidebar */
+        padding: 25px;
+        width: calc(100% - 260px);
+        transition: margin-left 0.3s ease, width 0.3s ease;
+      }
+
+      .page-header {
+        color: #2c3e50;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #3498db;
       }
 
       .stats-container {
         display: flex;
         overflow-x: auto;
-        gap: 1rem;
-        padding: 10px 0;
+        gap: 1.5rem; /* Jarak antar kartu ditambah */
+        padding: 15px 0;
         scrollbar-width: thin;
+        scrollbar-color: #3498db #bdc3c7;
       }
 
       .stats-card {
-        min-width: 200px;
-        flex: 0 0 auto;
+        min-width: 220px;
+        flex: 1 1 auto; /* Biarkan kartu tumbuh dan menyusut */
+        border: 1px solid #dee2e6;
+        border-left: 5px solid #3498db; /* Warna aksen */
+        background-color: #fff;
+      }
+      .stats-card strong {
+        font-size: 0.9rem;
+        color: #6c757d;
+        text-transform: uppercase;
+      }
+      .stats-card h4 {
+        font-weight: 700; /* Angka lebih tebal */
+        color: #2c3e50;
+        margin-top: 0.25rem;
+      }
+
+      /* Penataan untuk div "modal" */
+      #trashModal {
+        /* ID ini ditargetkan oleh JS Anda */
+        background: #ffffff;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem; /* Radius default kartu Bootstrap */
+      }
+      #trashModal h3 {
+        /* Sudah menggunakan selektor ID */
+        color: #2c3e50;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #eee;
+      }
+
+      .table-responsive {
+        margin-top: 1rem;
+      }
+      .table thead th {
+        background-color: #34495e !important; /* Header gelap untuk tabel */
+        color: white !important;
+      }
+
+      .card-custom-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        color: #2c3e50;
+        font-weight: 600;
       }
 
       @media (max-width: 768px) {
         .sidebar {
           width: 100%;
           height: auto;
-          position: relative;
+          position: relative; /* Tumpuk secara normal */
+          box-shadow: none;
+          z-index: 1;
         }
-
-        .logout-btn {
-          position: relative;
-          display: block;
-          width: 100%;
-          margin-top: 10px;
+        .sidebar-header {
+          padding: 0.8rem 1rem;
+          font-size: 1.3rem;
+        }
+        .sidebar a {
+          padding: 12px 20px;
+          font-size: 0.95rem;
+        }
+        .sidebar a .bi {
+          font-size: 1.1rem;
         }
 
         .content {
           margin-left: 0;
           padding: 15px;
+          width: 100%;
+        }
+
+        /* Tombol logout muncul dalam alur konten atau diposisikan berbeda */
+        .logout-btn {
+          /* Gaya asli Anda untuk responsif: */
+          position: relative;
+          display: block;
+          width: 100%;
+          margin-top: 10px;
+          /* Jika ingin tetap di pojok atas pada mobile: */
+          /* position: absolute; top: 10px; right: 10px; width: auto; margin-top: 0; */
         }
 
         .stats-container {
           flex-direction: column;
+          gap: 1rem;
           overflow-x: visible;
+        }
+        .stats-card {
+          min-width: 100%; /* Lebar penuh di perangkat mobile */
         }
       }
     </style>
   </head>
-  <body class="bg-light">
-    <div class="d-flex">
-      <!-- Sidebar -->
-      <div class="sidebar">
-        <h4 class="text-center">Admin</h4>
-        <a href="#" onclick="showSection('manajemenPengguna')">Manajemen Pengguna</a>
-        <a href="#" onclick="showSection('dataSampah')">Data Sampah</a>
-        <a href="#" onclick="showSection('grafikMonitoring')">Grafik Monitoring</a>
-        <hr />
+  <body class="bg-body-tertiary">
+    <div class="sidebar">
+      <div class="sidebar-header">Admin</div>
+      <a href="#" onclick="showSection('manajemenPengguna')"><i class="bi bi-people-fill"></i> Manajemen Pengguna</a>
+      <a href="#" onclick="showSection('dataSampah')"><i class="bi bi-trash3-fill"></i> Data Sampah</a>
+      <a href="#" onclick="showSection('grafikMonitoring')"><i class="bi bi-bar-chart-line-fill"></i> Grafik Monitoring</a>
+    </div>
+
+    <button id="logoutBtn" class="btn logout-btn"><i class="bi bi-box-arrow-right"></i> Logout</button>
+
+    <div class="content">
+      <h1 class="text-center mb-4 page-header">Selamat datang Admin</h1>
+
+      <div id="manajemenPengguna">
+        <h2 class="mt-4 mb-3" style="color: #2c3e50">Manajemen Data Pengguna</h2>
+
+        <div class="stats-container mt-3 mb-4">
+          <div class="card stats-card text-center shadow-sm p-3">
+            <strong>Total Pengguna</strong>
+            <h4 id="totalUsers">0</h4>
+          </div>
+          <div class="card stats-card text-center shadow-sm p-3">
+            <strong>Total Poin</strong>
+            <h4 id="totalPoints">0</h4>
+          </div>
+          <div class="card stats-card text-center shadow-sm p-3">
+            <strong>Total Saldo</strong>
+            <h4 id="totalBalance">Rp 0</h4>
+          </div>
+        </div>
+
+        <div class="card mt-4 shadow-sm">
+          <div class="card-header card-custom-header py-3">Daftar Pengguna</div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-bordered table-hover table-striped">
+                <thead>
+                  <tr>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Poin</th>
+                    <th>Saldo</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="userTableBody">
+                  <tr>
+                    <td colspan="5" class="text-center p-5 text-muted"><i>Memuat data pengguna...</i></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
-      <button id="logoutBtn" class="btn btn-danger position-absolute top-0 end-0 m-3">Logout</button>
 
-      <!-- Main Content -->
-      <div class="content container mt-5">
-        <div class="card p-4 shadow-sm">
-          <h1 class="text-center mb-4">Selamat datang Admin</h1>
+      <div id="dataSampah" style="display: none">
+        <h2 class="mt-4 mb-3" style="color: #2c3e50">Data Sampah</h2>
 
-          <!-- Manajemen Pengguna -->
-          <div id="manajemenPengguna">
-            <h2 class="mt-4">Manajemen Data Pengguna</h2>
+        <button class="btn btn-success mb-3" onclick="showAddTrashModal()"><i class="bi bi-plus-circle-fill"></i> Tambah Jenis Sampah</button>
 
-            <!-- Scrollable Stats -->
-            <div class="stats-container mt-3">
-              <div class="card stats-card text-center shadow-sm p-3">
-                <strong>Total Pengguna</strong>
-                <h4 id="totalUsers">0</h4>
-              </div>
-              <div class="card stats-card text-center shadow-sm p-3">
-                <strong>Total Poin</strong>
-                <h4 id="totalPoints">0</h4>
-              </div>
-              <div class="card stats-card text-center shadow-sm p-3">
-                <strong>Total Saldo</strong>
-                <h4 id="totalBalance">Rp 0</h4>
-              </div>
+        <div id="trashModal" style="display: none" class="card p-4 mt-3 mb-4 shadow-sm">
+          <h3 id="modalTitle" class="mb-4">Tambah Jenis Sampah</h3>
+          <form id="trashForm" enctype="multipart/form-data">
+            <input type="hidden" id="trashId" />
+            <div class="mb-3">
+              <label for="trashName" class="form-label">Jenis Sampah:</label>
+              <input type="text" id="trashName" class="form-control" required />
             </div>
 
-            <div class="card mt-4 shadow-sm">
-              <div class="card-body">
-                <table class="table table-bordered">
-                  <thead class="table-dark">
-                    <tr>
-                      <th>Username</th>
-                      <th>Email</th>
-                      <th>Poin</th>
-                      <th>Saldo</th>
-                      <th>Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody id="userTableBody">
-                    <!-- Data pengguna akan dimuat di sini -->
-                  </tbody>
-                </table>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="trashPointPerUnit" class="form-label">Poin per Unit:</label>
+                <input type="number" id="trashPointPerUnit" class="form-control" required />
               </div>
-            </div>
-          </div>
-
-          <!-- Data Sampah -->
-          <div id="dataSampah" style="display: none">
-            <h2 class="mt-4">Data Sampah</h2>
-            <button class="btn btn-success mb-3" onclick="showAddTrashModal()">Tambah Jenis Sampah</button>
-
-            <div class="card shadow-sm">
-              <div class="card-body">
-                <table class="table table-bordered">
-                  <thead class="table-dark">
-                    <tr>
-                      <th>Jenis Sampah</th>
-                      <th>Poin</th>
-                      <th>Satuan</th>
-                      <th>Gambar</th>
-                      <th>Deskripsi</th>
-                      <th>Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody id="trashTableBody">
-                    <!-- Data jenis sampah akan dimuat di sini -->
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <!-- Modal Tambah/Edit Jenis Sampah -->
-          <div id="trashModal" style="display: none" class="card p-4 mt-4 shadow-sm">
-            <h3 id="modalTitle">Tambah Jenis Sampah</h3>
-            <form id="trashForm" enctype="multipart/form-data">
-              <input type="hidden" id="trashId" />
-              <div class="mb-3">
-                <label class="form-label">Jenis Sampah:</label>
-                <input type="text" id="trashName" class="form-control" />
-              </div>
-
-              <div class="mb-3">
-                <label class="form-label">Poin per Unit:</label>
-                <input type="number" id="trashPointPerUnit" class="form-control" />
-              </div>
-
-              <div class="mb-3">
-                <label class="form-label">Satuan:</label>
-                <select id="trashUnit" class="form-control">
+              <div class="col-md-6 mb-3">
+                <label for="trashUnit" class="form-label">Satuan:</label>
+                <select id="trashUnit" class="form-select">
                   <option value="kg">kg</option>
                 </select>
               </div>
-
-              <div class="mb-3">
-                <label class="form-label">Gambar:</label>
-                <input type="file" id="trashPicture" class="form-control" />
-              </div>
-
-              <div class="mb-3">
-                <label class="form-label">Deskripsi:</label>
-                <textarea id="trashDescription" class="form-control"></textarea>
-              </div>
-
-              <button type="button" onclick="saveTrash()" class="btn btn-primary">Simpan</button>
-            </form>
-          </div>
-
-          <!-- Grafik Monitoring -->
-          <div id="grafikMonitoring" style="display: none" class="mt-5">
-            <h2 class="mt-4">Grafik Monitoring</h2>
-            <div class="card shadow-sm p-3">
-              <p>Grafik pemantauan akan ditampilkan di sini.</p>
             </div>
+
+            <div class="mb-3">
+              <label for="trashPicture" class="form-label">Gambar:</label>
+              <input type="file" id="trashPicture" class="form-control" accept="image/*" />
+            </div>
+
+            <div class="mb-3">
+              <label for="trashDescription" class="form-label">Deskripsi:</label>
+              <textarea id="trashDescription" class="form-control" rows="3"></textarea>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+              <button type="button" onclick="hideTrashModal()" class="btn btn-outline-secondary"><i class="bi bi-x-circle"></i> Batal</button>
+              <button type="button" onclick="saveTrash()" class="btn btn-primary"><i class="bi bi-save"></i> Simpan</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card shadow-sm">
+          <div class="card-header card-custom-header py-3">Daftar Jenis Sampah</div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-bordered table-hover table-striped">
+                <thead>
+                  <tr>
+                    <th>Jenis Sampah</th>
+                    <th>Poin</th>
+                    <th>Satuan</th>
+                    <th>Gambar</th>
+                    <th>Deskripsi</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="trashTableBody">
+                  <tr>
+                    <td colspan="6" class="text-center p-5 text-muted"><i>Memuat data jenis sampah...</i></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="grafikMonitoring" style="display: none" class="mt-4">
+        <h2 class="mt-4 mb-3" style="color: #2c3e50">Grafik Monitoring</h2>
+        <div class="card shadow-sm">
+          <div class="card-header card-custom-header py-3">Data Pemantauan</div>
+          <div class="card-body text-center p-5">
+            <p class="text-muted"><i>Grafik pemantauan akan ditampilkan di sini.</i></p>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- JavaScript -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   </body>

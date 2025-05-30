@@ -20,6 +20,7 @@ import secrets
 import smtplib
 from flask import request, jsonify
 from email.mime.text import MIMEText
+from mysql.connector import Error as MySQLError 
 
 # Load file env
 load_dotenv()
@@ -36,6 +37,10 @@ cloudinary.config(
     api_key=os.getenv("API_KEY"),
     api_secret=os.getenv("API_SECRET")
 )
+
+EMAIL_USER = os.getenv("EMAIL_USER")
+EMAIL_PASS = os.getenv("EMAIL_PASS")
+
 
 # untuk menyimpan gambar di lokal
 UPLOAD_FOLDER = "static/uploads/"
@@ -469,7 +474,6 @@ def login():
     }), 200
 
 
-
 reset_tokens = {}  # {email: (token, expiry_time)}
 @app.route('/request-reset-password', methods=['POST'])
 def request_reset_password():
@@ -484,22 +488,20 @@ def request_reset_password():
     if not user:
         return jsonify({"message": "Email tidak ditemukan", "success": False}), 404
 
-    token = secrets.token_hex(3).upper()  # Misal: 'A1B2C3'
-    expiry = time.time() + 120  # 120 detik
-
+    token = secrets.token_hex(3).upper()
+    expiry = time.time() + 120
     reset_tokens[email] = (token, expiry)
 
-    # Kirim token ke email (gunakan SMTP atau API sesungguhnya)
     message = MIMEText(f"Kode reset password Anda adalah: {token}")
     message["Subject"] = "Reset Password - TrashTech"
-    message["From"] = "derilwijdan346@gmail.com"
+    message["From"] = EMAIL_USER
     message["To"] = email
 
     try:
         smtp = smtplib.SMTP("smtp.gmail.com", 587)
         smtp.starttls()
-        smtp.login("derilwijdan346@gmail.com", "pcou krdl errg sdfp")
-        smtp.sendmail("derilwijdan346@gmail.com", email, message.as_string())
+        smtp.login(EMAIL_USER, EMAIL_PASS)
+        smtp.sendmail(EMAIL_USER, email, message.as_string())
         smtp.quit()
     except Exception as e:
         print(f"Email gagal dikirim: {e}")
@@ -707,16 +709,33 @@ def update_profile():
     finally:
         cur.close()
         conn.close()
+        
 # ✅ Endpoint: setor sampah pengguna di tabel `setor_sampah`
 @app.route('/setor-sampah', methods=['POST'])
 def setor_sampah():
     data = request.get_json()
-    if not data or 'user_id' not in data or 'waste_id' not in data or 'weight' not in data:
-        return jsonify({'error': 'Data tidak lengkap'}), 400
+    # Validasi data, sekarang juga termasuk latitude dan longitude
+    if not data or \
+       'user_id' not in data or \
+       'waste_id' not in data or \
+       'weight' not in data or \
+       'latitude' not in data or \
+       'longitude' not in data: # Tambahkan pengecekan untuk latitude dan longitude
+        return jsonify({'error': 'Data tidak lengkap (user_id, waste_id, weight, latitude, longitude dibutuhkan)'}), 400
 
     user_id = data['user_id']
     waste_id = data['waste_id']
     weight = data['weight']
+    latitude = data['latitude']     
+    longitude = data['longitude']   
+
+    # Pastikan latitude dan longitude adalah float atau bisa dikonversi
+    try:
+        latitude = float(latitude)
+        longitude = float(longitude)
+    except ValueError:
+        return jsonify({'error': 'Latitude dan Longitude harus berupa angka'}), 400
+
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -731,25 +750,35 @@ def setor_sampah():
     poin_per_unit = kategori[0]
     points_earned = int(weight / 1000 * poin_per_unit)
 
-    # Simpan data setor sampah
-    cursor.execute(
-        'INSERT INTO setor_sampah (user_id, waste_id, weight, points_earned, date) VALUES (%s, %s, %s, %s, %s)',
-        (user_id, waste_id, weight, points_earned, datetime.now())
-    )
+    # Simpan data setor sampah, sekarang termasuk latitude dan longitude
+    try:
+        cursor.execute(
+            'INSERT INTO setor_sampah (user_id, waste_id, weight, points_earned, date, latitude, longitude) VALUES (%s, %s, %s, %s, %s, %s, %s)',
+            (user_id, waste_id, weight, points_earned, datetime.now(), latitude, longitude) # Tambahkan latitude dan longitude
+        )
 
-    # Update total poin user (tambah poin baru ke poin yang lama)
-    cursor.execute(
-        'UPDATE users SET points = points + %s WHERE id = %s',
-        (points_earned, user_id)
-    )
+        # Update total poin user (tambah poin baru ke poin yang lama)
+        cursor.execute(
+            'UPDATE users SET points = points + %s WHERE id = %s',
+            (points_earned, user_id)
+        )
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    except Exception as e:
+        conn.rollback() # Penting untuk rollback jika ada error saat transaksi database
+        conn.close()
+        print(f"Database error: {e}") # Log error untuk debugging
+        return jsonify({'error': 'Gagal menyimpan data ke database'}), 500
+    finally:
+        conn.close()
+
 
     return jsonify({
         'message': 'Setor sampah berhasil',
         'points_earned': points_earned,
-        'total_weight': weight
+        'total_weight': weight,
+        'latitude': latitude,   # Kembalikan juga latitude
+        'longitude': longitude  # Kembalikan juga longitude
     }), 200
 
 # Membuat fungsi (update saldo) ketika di tarik saldonya
@@ -810,6 +839,111 @@ def get_leaderboard():
     conn.close()
     return jsonify(results), 200
 
+
+# ✅ Endpoint: Penukaran Poin (Nilai saldo ditentukan dari Flutter)
+@app.route('/tukar-poin', methods=['POST'])
+def tukar_poin_endpoint():
+    data = request.get_json()
+    if not all(k in data for k in ('user_id', 'poin_ditukar', 'nilai_saldo_didapat')):
+        return jsonify({'error': 'Data tidak lengkap (user_id, poin_ditukar, nilai_saldo_didapat dibutuhkan)'}), 400
+
+    user_id = data['user_id']
+    try:
+        poin_ditukar = int(data['poin_ditukar'])
+        nilai_saldo_didapat_dari_flutter = int(data['nilai_saldo_didapat'])
+        if poin_ditukar <= 0 or nilai_saldo_didapat_dari_flutter < 0:
+            raise ValueError("Input tidak valid")
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Poin ditukar dan nilai saldo didapat harus berupa angka valid'}), 400
+
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        if not conn: return jsonify({'error': 'Koneksi database gagal'}), 500
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute('SELECT points, balance FROM users WHERE id = %s', (user_id,))
+        user = cursor.fetchone()
+
+        if not user: return jsonify({'error': 'Pengguna tidak ditemukan'}), 404
+        if user['points'] < poin_ditukar:
+            return jsonify({'error': 'Poin tidak mencukupi'}), 400
+
+        poin_baru = user['points'] - poin_ditukar
+        saldo_baru = float(user['balance']) + nilai_saldo_didapat_dari_flutter
+
+        cursor.execute('UPDATE users SET points = %s, balance = %s WHERE id = %s',
+                       (poin_baru, saldo_baru, user_id))
+        conn.commit()
+
+        return jsonify({
+            'message': 'Penukaran poin berhasil',
+            'user_id': user_id, 'poin_ditukar': poin_ditukar,
+            'saldo_didapat': nilai_saldo_didapat_dari_flutter,
+            'poin_tersisa': poin_baru, 'saldo_sekarang': saldo_baru
+        }), 200
+    except MySQLError as e:
+        if conn: conn.rollback()
+        print(f"DB Error /tukar-poin: {e}")
+        return jsonify({'error': 'Operasi database gagal'}), 500
+    except Exception as e:
+        if conn: conn.rollback()
+        print(f"Error /tukar-poin: {e}")
+        return jsonify({'error': 'Terjadi kesalahan server'}), 500
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+# ✅ Endpoint: Get User Points
+@app.route('/user/<string:user_id>/points', methods=['GET'])
+def get_user_points(user_id):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        if not conn: return jsonify({'error': 'Koneksi database gagal'}), 500
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute('SELECT points FROM users WHERE id = %s', (user_id,))
+        user = cursor.fetchone()
+
+        if not user: return jsonify({'error': 'Pengguna tidak ditemukan'}), 404
+        return jsonify({'user_id': user_id, 'points': user['points']}), 200
+    except MySQLError as e:
+        print(f"DB Error /user/.../points: {e}")
+        return jsonify({'error': 'Operasi database gagal'}), 500
+    except Exception as e:
+        print(f"Error /user/.../points: {e}")
+        return jsonify({'error': 'Terjadi kesalahan server'}), 500
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+# ✅ Endpoint: Get User Balance
+@app.route('/user/<string:user_id>/balance', methods=['GET'])
+def get_user_balance(user_id):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection()
+        if not conn: return jsonify({'error': 'Koneksi database gagal'}), 500
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute('SELECT balance FROM users WHERE id = %s', (user_id,))
+        user = cursor.fetchone()
+
+        if not user: return jsonify({'error': 'Pengguna tidak ditemukan'}), 404
+        return jsonify({'user_id': user_id, 'balance': float(user['balance'])}), 200
+    except MySQLError as e:
+        print(f"DB Error /user/.../balance: {e}")
+        return jsonify({'error': 'Operasi database gagal'}), 500
+    except Exception as e:
+        print(f"Error /user/.../balance: {e}")
+        return jsonify({'error': 'Terjadi kesalahan server'}), 500
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
 # tes
 # 🟢 Run the App
 if __name__ == "__main__":

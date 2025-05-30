@@ -5,113 +5,354 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bank Sampah TrashTech</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet" />
     <style>
       body {
-        background: url("https://png.pngtree.com/thumb_back/fh260/background/20220217/pngtree-beautiful-hand-painted-green-garbage-collection-illustration-background-image_945238.jpg") no-repeat center center/cover;
+        font-family: "Poppins", sans-serif;
+        background: url("https://png.pngtree.com/thumb_back/fh260/background/20220217/pngtree-beautiful-hand-painted-green-garbage-collection-illustration-background-image_945238.jpg") no-repeat center center fixed;
+        background-size: cover;
         min-height: 100vh;
+        color: #333; /* Warna teks default untuk konten di luar overlay */
       }
-      .overlay {
-        background: rgba(0, 0, 0, 0.5);
-        height: 100vh;
+
+      .navbar {
+        background-color: rgba(0, 77, 0, 0.9); /* Dark Green dengan sedikit transparansi */
+        border-bottom: 3px solid #aadd00; /* Lime Green Accent */
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+        transition: background-color 0.3s ease-in-out;
+      }
+
+      .navbar-brand {
+        font-weight: 700;
+        font-size: 1.8rem;
+        color: #fff !important;
+      }
+
+      .nav-link {
+        color: #f0f0f0 !important;
+        font-weight: 400;
+        transition: color 0.3s ease;
+        margin-left: 10px;
+        margin-right: 10px;
+      }
+
+      .nav-link:hover,
+      .nav-link.active {
+        color: #aadd00 !important; /* Lime Green untuk hover dan active */
+        font-weight: 600;
+      }
+
+      .hero-overlay {
+        background: rgba(0, 0, 0, 0.6); /* Overlay lebih gelap agar teks lebih kontras */
+        min-height: 100vh; /* Menggunakan min-height agar bisa scroll jika konten panjang */
         display: flex;
         justify-content: center;
         align-items: center;
         flex-direction: column;
         color: white;
         text-align: center;
+        padding: 20px;
       }
-      .navbar {
-        background: #004d00;
-        border-bottom: 3px solid #aadd00;
+
+      .hero-overlay h1 {
+        font-size: 3.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
       }
-      .btn-custom {
-        background: #aadd00;
+
+      .hero-overlay p {
+        font-size: 1.25rem;
+        margin-bottom: 2rem;
+        max-width: 600px;
+      }
+
+      .btn-custom-primary {
+        background-color: #aadd00; /* Lime Green */
         border: none;
-        color: black;
+        color: #004d00; /* Dark Green text */
+        padding: 12px 30px;
+        font-weight: 600;
+        font-size: 1.1rem;
+        border-radius: 50px; /* Rounded button */
+        transition: all 0.3s ease;
+        margin: 0.5rem;
       }
-      .btn-custom:hover {
-        background: #99cc00;
+
+      .btn-custom-primary:hover {
+        background-color: #99cc00; /* Darker Lime Green */
+        color: #003300;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
       }
-      .team-section {
-        padding: 50px 0;
-        background: rgba(255, 255, 255, 0.9);
+      .btn-custom-secondary {
+        background-color: transparent;
+        border: 2px solid #aadd00;
+        color: #aadd00;
+        padding: 10px 28px;
+        font-weight: 600;
+        font-size: 1.1rem;
+        border-radius: 50px;
+        transition: all 0.3s ease;
+        margin: 0.5rem;
+      }
+
+      .btn-custom-secondary:hover {
+        background-color: #aadd00;
+        color: #004d00;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(170, 221, 0, 0.3);
+      }
+
+      .section {
+        padding: 60px 0;
+        background-color: rgba(255, 255, 255, 0.95); /* Latar putih semi-transparan untuk section */
+      }
+      .section-darker {
+        background-color: rgba(240, 245, 240, 0.95); /* Sedikit lebih gelap untuk variasi */
+      }
+
+      .section-title {
         text-align: center;
+        margin-bottom: 50px;
+        font-weight: 700;
+        font-size: 2.5rem;
+        color: #004d00; /* Dark Green */
       }
-      .team-member {
-        margin-bottom: 20px;
+      .section-title::after {
+        content: "";
+        display: block;
+        width: 60px;
+        height: 4px;
+        background-color: #aadd00; /* Lime Green Accent */
+        margin: 10px auto 0;
       }
-      .team-member img {
-        width: 150px;
-        height: 150px;
+
+      .team-member-card {
+        background-color: #fff;
+        border: 1px solid #e0e0e0;
+        border-radius: 15px;
+        padding: 20px;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        height: 100%; /* Agar card sama tinggi */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .team-member-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+      }
+
+      .team-member-card img {
+        width: 130px; /* Sedikit lebih kecil */
+        height: 130px;
         border-radius: 50%;
         object-fit: cover;
+        margin-bottom: 15px;
+        border: 4px solid #aadd00; /* Border dengan warna aksen */
+      }
+
+      .team-member-card h5 {
+        font-weight: 600;
+        color: #004d00;
+        margin-bottom: 5px;
+      }
+
+      .team-member-card p {
+        font-size: 0.9rem;
+        color: #555;
+      }
+
+      .service-item {
+        text-align: center;
+        padding: 20px;
+      }
+      .service-item .icon {
+        font-size: 3rem;
+        color: #aadd00; /* Lime Green */
+        margin-bottom: 20px;
+        display: inline-block;
+        background-color: rgba(0, 77, 0, 0.1); /* Light green background for icon */
+        padding: 20px;
+        border-radius: 50%;
+        width: 100px;
+        height: 100px;
+        line-height: 60px; /* Vertically center icon */
+      }
+      .service-item h4 {
+        font-weight: 600;
+        color: #004d00;
+        margin-bottom: 10px;
+      }
+
+      .footer {
+        background-color: #003300; /* Warna hijau lebih gelap untuk footer */
+        color: #f0f0f0;
+        padding: 30px 0;
+        text-align: center;
+        font-size: 0.9rem;
+      }
+      .footer a {
+        color: #aadd00;
+        text-decoration: none;
+      }
+      .footer a:hover {
+        text-decoration: underline;
       }
     </style>
   </head>
   <body>
-    <nav class="navbar navbar-expand-lg navbar-dark">
+    <nav class="navbar navbar-expand-lg fixed-top">
       <div class="container">
-        <a class="navbar-brand text-light" href="#">TrashTech</a>
+        <a class="navbar-brand" href="#"><i class="fas fa-recycle me-2"></i>TrashTech</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
           <ul class="navbar-nav ms-auto">
-            <li class="nav-item"><a class="nav-link text-light" href="#">Beranda</a></li>
-            <li class="nav-item"><a class="nav-link text-light" href="#">Petunjuk</a></li>
-            <li class="nav-item"><a class="nav-link text-light" href="#team">Tim Kami</a></li>
-            <li class="nav-item"><a class="nav-link text-light" href="#">Lokasi</a></li>
+            <li class="nav-item"><a class="nav-link active" href="#">Beranda</a></li>
+            <li class="nav-item"><a class="nav-link" href="#about">Tentang Kami</a></li>
+            <li class="nav-item"><a class="nav-link" href="#services">Layanan</a></li>
+            <li class="nav-item"><a class="nav-link" href="#team">Tim Kami</a></li>
+            <li class="nav-item"><a class="nav-link" href="#">Lokasi</a></li>
           </ul>
         </div>
       </div>
     </nav>
 
-    <div class="overlay">
+    <div class="hero-overlay">
       <h1>Bank Sampah TrashTech</h1>
-      <p>Merubah sampah menjadi penghasilan tambahan Anda !!!</p>
+      <p>Merubah sampah menjadi sumber penghasilan tambahan yang berkelanjutan dan ramah lingkungan!</p>
       <div>
-        <button class="btn btn-custom me-2" id="adminLoginBtn">Login Admin</button>
+        <button class="btn btn-custom-primary" id="adminLoginBtn">Login Admin</button>
+        <button class="btn btn-custom-secondary">Pelajari Lebih Lanjut</button>
       </div>
     </div>
 
-    <!-- Section Tim Kami -->
-    <section id="team" class="team-section">
+    <section id="about" class="section">
       <div class="container">
-        <h2 class="mb-4">Tim Kami</h2>
-        <div class="row justify-content-center">
-          <div class="col-md-2 team-member">
-            <img src="https://via.placeholder.com/150" alt="Anggota 1" />
-            <h5>Deril Wijdan</h5>
-            <p>CEO & Founder</p>
+        <h2 class="section-title">Tentang TrashTech</h2>
+        <div class="row align-items-center">
+          <div class="col-md-6">
+            <img src="https://images.unsplash.com/photo-1582408920745-53IA2090988e?ixlib=rb-1.2.1&q=80&fm=jpg&crop=entropy&cs=tinysrgb&w=800&fit=max&ixid=eyJhcHBfaWQiOjEyMDd9" alt="Tentang TrashTech" class="img-fluid rounded shadow" />
           </div>
-          <div class="col-md-2 team-member">
-            <img src="https://via.placeholder.com/150" alt="Anggota 2" />
-            <h5>Shidqul Aziz</h5>
-            <p>CTO</p>
-          </div>
-          <div class="col-md-2 team-member">
-            <img src="https://via.placeholder.com/150" alt="Anggota 3" />
-            <h5>Giovanni Andika</h5>
-            <p>Marketing</p>
-          </div>
-          <div class="col-md-2 team-member">
-            <img src="https://via.placeholder.com/150" alt="Anggota 4" />
-            <h5>Haikal</h5>
-            <p>Designer</p>
-          </div>
-          <div class="col-md-2 team-member">
-            <img src="https://via.placeholder.com/150" alt="Anggota 5" />
-            <h5>Retsi Andari</h5>
-            <p>Finance</p>
+          <div class="col-md-6">
+            <p class="lead mt-3 mt-md-0">
+              TrashTech adalah platform inovatif yang bertujuan untuk merevolusi cara masyarakat mengelola sampah. Kami percaya bahwa sampah memiliki nilai dan dapat diubah menjadi sumber daya yang bermanfaat, baik secara ekonomi maupun
+              lingkungan.
+            </p>
+            <p>
+              Dengan sistem bank sampah digital kami, kami mempermudah individu dan komunitas untuk menyetor sampah yang dapat didaur ulang, mendapatkan poin, dan menukarkannya dengan uang tunai atau berbagai reward menarik. Misi kami
+              adalah menciptakan ekosistem pengelolaan sampah yang lebih efisien, transparan, dan menguntungkan bagi semua pihak, sekaligus berkontribusi pada pelestarian lingkungan.
+            </p>
           </div>
         </div>
       </div>
     </section>
 
+    <section id="services" class="section section-darker">
+      <div class="container">
+        <h2 class="section-title">Layanan Kami</h2>
+        <div class="row">
+          <div class="col-md-4 service-item">
+            <div class="icon"><i class="fas fa-recycle"></i></div>
+            <h4>Setor Sampah Mudah</h4>
+            <p>Setorkan sampah daur ulang Anda dengan mudah melalui aplikasi kami dan dapatkan poin.</p>
+          </div>
+          <div class="col-md-4 service-item">
+            <div class="icon"><i class="fas fa-coins"></i></div>
+            <h4>Tukar Poin Jadi Uang</h4>
+            <p>Tukarkan poin yang terkumpul dengan saldo uang tunai atau hadiah menarik lainnya.</p>
+          </div>
+          <div class="col-md-4 service-item">
+            <div class="icon"><i class="fas fa-chart-line"></i></div>
+            <h4>Laporan Terperinci</h4>
+            <p>Pantau riwayat setoran dan penukaran poin Anda secara transparan melalui aplikasi.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="team" class="section">
+      <div class="container">
+        <h2 class="section-title">Tim Kami</h2>
+        <div class="row justify-content-center gy-4">
+          <div class="col-lg-2 col-md-4 col-sm-6 team-member">
+            <div class="team-member-card">
+              <img src="https://via.placeholder.com/150/AADD00/004D00?text=DW" alt="Deril Wijdan" />
+              <h5>Deril Wijdan</h5>
+              <p>CEO & Founder</p>
+            </div>
+          </div>
+          <div class="col-lg-2 col-md-4 col-sm-6 team-member">
+            <div class="team-member-card">
+              <img src="https://via.placeholder.com/150/AADD00/004D00?text=SA" alt="Shidqul Aziz" />
+              <h5>Shidqul Aziz</h5>
+              <p>CTO</p>
+            </div>
+          </div>
+          <div class="col-lg-2 col-md-4 col-sm-6 team-member">
+            <div class="team-member-card">
+              <img src="https://via.placeholder.com/150/AADD00/004D00?text=GA" alt="Giovanni Andika" />
+              <h5>Giovanni Andika</h5>
+              <p>Marketing</p>
+            </div>
+          </div>
+          <div class="col-lg-2 col-md-4 col-sm-6 team-member">
+            <div class="team-member-card">
+              <img src="https://via.placeholder.com/150/AADD00/004D00?text=H" alt="Haikal" />
+              <h5>Haikal</h5>
+              <p>Designer</p>
+            </div>
+          </div>
+          <div class="col-lg-2 col-md-4 col-sm-6 team-member">
+            <div class="team-member-card">
+              <img src="https://via.placeholder.com/150/AADD00/004D00?text=RA" alt="Retsi Andari" />
+              <h5>Retsi Andari</h5>
+              <p>Finance</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="container">
+        <p>&copy; 2024 Bank Sampah TrashTech. Hak Cipta Dilindungi.</p>
+        <p><a href="#">Kebijakan Privasi</a> | <a href="#">Syarat & Ketentuan</a></p>
+      </div>
+    </footer>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
       document.getElementById("adminLoginBtn").addEventListener("click", function () {
-        window.location.href = "/admin/login";
+        window.location.href = "/admin/login"; // Pastikan route ini ada di backend Flask Anda
+      });
+
+      // Smooth scroll untuk navigasi internal
+      document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+        anchor.addEventListener("click", function (e) {
+          e.preventDefault();
+          document.querySelector(this.getAttribute("href")).scrollIntoView({
+            behavior: "smooth",
+          });
+        });
+      });
+
+      // Navbar transparan saat di atas, solid saat scroll
+      const navbar = document.querySelector(".navbar");
+      window.addEventListener("scroll", () => {
+        if (window.scrollY > 50) {
+          navbar.style.backgroundColor = "rgba(0, 77, 0, 1)"; // Solid Dark Green
+        } else {
+          navbar.style.backgroundColor = "rgba(0, 77, 0, 0.9)"; // Original transparent
+        }
       });
     </script>
   </body>
