@@ -8,24 +8,22 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
     <style>
       body {
-        background-color: #e9ecef; /* Latar belakang lebih lembut */
+        background-color: #e9ecef;
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
       }
-
       .sidebar {
-        width: 260px; /* Sedikit lebih lebar */
+        width: 260px;
         height: 100vh;
         position: fixed;
         top: 0;
         left: 0;
-        background: #2c3e50; /* Warna sidebar lebih gelap dan modern */
+        background: #2c3e50;
         color: white;
-        padding-top: 0; /* Hapus padding default, terapkan ke header */
+        padding-top: 0;
         z-index: 1000;
         box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
         transition: width 0.3s ease;
       }
-
       .sidebar-header {
         padding: 1.25rem 1.5rem;
         font-size: 1.6rem;
@@ -34,81 +32,71 @@
         color: #ecf0f1;
         border-bottom: 1px solid #34495e;
       }
-
       .sidebar a {
-        display: flex; /* Untuk perataan ikon */
-        align-items: center; /* Untuk perataan ikon */
-        color: #bdc3c7; /* Warna teks link lebih terang */
+        display: flex;
+        align-items: center;
+        color: #bdc3c7;
         padding: 15px 25px;
         text-decoration: none;
         font-size: 1rem;
         border-bottom: 1px solid #34495e;
         transition: background-color 0.2s ease, color 0.2s ease;
       }
-
       .sidebar a:last-child {
         border-bottom: none;
       }
-
       .sidebar a:hover {
-        background: #3498db; /* Warna hover lebih cerah */
+        background: #3498db;
         color: white;
       }
       .sidebar a .bi {
         margin-right: 12px;
         font-size: 1.2rem;
       }
-
-      /* Gaya untuk tombol logout - menggunakan kelas .logout-btn Anda */
       .logout-btn {
-        position: fixed; /* Diubah menjadi fixed agar tetap di viewport */
+        position: fixed;
         top: 15px;
         right: 20px;
-        background-color: #e74c3c; /* Merah seperti Bootstrap danger */
+        background-color: #e74c3c;
         border: none;
         padding: 10px 15px;
         color: white;
         border-radius: 5px;
         cursor: pointer;
-        z-index: 1100; /* Pastikan di atas sidebar jika ada skenario tumpang tindih */
+        z-index: 1100;
         transition: background-color 0.2s ease;
       }
-
       .logout-btn:hover {
-        background-color: #c0392b; /* Merah lebih gelap saat hover */
+        background-color: #c0392b;
       }
       .logout-btn .bi {
         margin-right: 5px;
       }
-
       .content {
-        margin-left: 260px; /* Sesuaikan dengan lebar sidebar */
+        margin-left: 260px;
         padding: 25px;
         width: calc(100% - 260px);
         transition: margin-left 0.3s ease, width 0.3s ease;
       }
-
       .page-header {
         color: #2c3e50;
         margin-bottom: 2rem;
         padding-bottom: 1rem;
         border-bottom: 2px solid #3498db;
       }
-
       .stats-container {
         display: flex;
         overflow-x: auto;
-        gap: 1.5rem; /* Jarak antar kartu ditambah */
+        gap: 1.5rem;
         padding: 15px 0;
         scrollbar-width: thin;
         scrollbar-color: #3498db #bdc3c7;
       }
-
       .stats-card {
         min-width: 220px;
-        flex: 1 1 auto; /* Biarkan kartu tumbuh dan menyusut */
+        flex: 1 1 auto;
         border: 1px solid #dee2e6;
-        border-left: 5px solid #3498db; /* Warna aksen */
+        border-left: 5px solid #3498db;
         background-color: #fff;
       }
       .stats-card strong {
@@ -117,84 +105,64 @@
         text-transform: uppercase;
       }
       .stats-card h4 {
-        font-weight: 700; /* Angka lebih tebal */
+        font-weight: 700;
         color: #2c3e50;
         margin-top: 0.25rem;
       }
-
-      /* Penataan untuk div "modal" */
-      #trashModal {
-        /* ID ini ditargetkan oleh JS Anda */
+      #trashModal,
+      #merchModal {
         background: #ffffff;
         border: 1px solid #dee2e6;
-        border-radius: 0.375rem; /* Radius default kartu Bootstrap */
+        border-radius: 0.375rem;
       }
-      #trashModal h3 {
-        /* Sudah menggunakan selektor ID */
+      #trashModal h3,
+      #merchModal h3 {
         color: #2c3e50;
         padding-bottom: 1rem;
         border-bottom: 1px solid #eee;
       }
-
       .table-responsive {
         margin-top: 1rem;
       }
       .table thead th {
-        background-color: #34495e !important; /* Header gelap untuk tabel */
+        background-color: #34495e !important;
         color: white !important;
       }
-
       .card-custom-header {
         background-color: #f8f9fa;
         border-bottom: 1px solid #dee2e6;
         color: #2c3e50;
         font-weight: 600;
       }
-
+      .merch-img {
+        /* Style untuk gambar di tabel merch */
+        width: 60px;
+        height: 60px;
+        object-fit: cover;
+        border-radius: 5px;
+      }
       @media (max-width: 768px) {
         .sidebar {
           width: 100%;
           height: auto;
-          position: relative; /* Tumpuk secara normal */
+          position: relative;
           box-shadow: none;
           z-index: 1;
         }
-        .sidebar-header {
-          padding: 0.8rem 1rem;
-          font-size: 1.3rem;
-        }
-        .sidebar a {
-          padding: 12px 20px;
-          font-size: 0.95rem;
-        }
-        .sidebar a .bi {
-          font-size: 1.1rem;
-        }
-
         .content {
           margin-left: 0;
           padding: 15px;
           width: 100%;
         }
-
-        /* Tombol logout muncul dalam alur konten atau diposisikan berbeda */
         .logout-btn {
-          /* Gaya asli Anda untuk responsif: */
           position: relative;
           display: block;
           width: 100%;
           margin-top: 10px;
-          /* Jika ingin tetap di pojok atas pada mobile: */
-          /* position: absolute; top: 10px; right: 10px; width: auto; margin-top: 0; */
         }
-
         .stats-container {
           flex-direction: column;
           gap: 1rem;
-          overflow-x: visible;
-        }
-        .stats-card {
-          min-width: 100%; /* Lebar penuh di perangkat mobile */
         }
       }
     </style>
@@ -204,6 +172,7 @@
       <div class="sidebar-header">Admin</div>
       <a href="#" onclick="showSection('manajemenPengguna')"><i class="bi bi-people-fill"></i> Manajemen Pengguna</a>
       <a href="#" onclick="showSection('dataSampah')"><i class="bi bi-trash3-fill"></i> Data Sampah</a>
+      <a href="#" onclick="showSection('manajemenMerchandise')"><i class="bi bi-gift-fill"></i> Manajemen Merchandise</a>
       <a href="#" onclick="showSection('grafikMonitoring')"><i class="bi bi-bar-chart-line-fill"></i> Grafik Monitoring</a>
     </div>
 
@@ -214,7 +183,6 @@
 
       <div id="manajemenPengguna">
         <h2 class="mt-4 mb-3" style="color: #2c3e50">Manajemen Data Pengguna</h2>
-
         <div class="stats-container mt-3 mb-4">
           <div class="card stats-card text-center shadow-sm p-3">
             <strong>Total Pengguna</strong>
@@ -229,7 +197,6 @@
             <h4 id="totalBalance">Rp 0</h4>
           </div>
         </div>
-
         <div class="card mt-4 shadow-sm">
           <div class="card-header card-custom-header py-3">Daftar Pengguna</div>
           <div class="card-body">
@@ -257,48 +224,29 @@
 
       <div id="dataSampah" style="display: none">
         <h2 class="mt-4 mb-3" style="color: #2c3e50">Data Sampah</h2>
-
         <button class="btn btn-success mb-3" onclick="showAddTrashModal()"><i class="bi bi-plus-circle-fill"></i> Tambah Jenis Sampah</button>
-
         <div id="trashModal" style="display: none" class="card p-4 mt-3 mb-4 shadow-sm">
           <h3 id="modalTitle" class="mb-4">Tambah Jenis Sampah</h3>
           <form id="trashForm" enctype="multipart/form-data">
             <input type="hidden" id="trashId" />
-            <div class="mb-3">
-              <label for="trashName" class="form-label">Jenis Sampah:</label>
-              <input type="text" id="trashName" class="form-control" required />
-            </div>
-
+            <div class="mb-3"><label for="trashName" class="form-label">Jenis Sampah:</label><input type="text" id="trashName" class="form-control" required /></div>
             <div class="row">
+              <div class="col-md-6 mb-3"><label for="trashPointPerUnit" class="form-label">Poin per Unit:</label><input type="number" id="trashPointPerUnit" class="form-control" required /></div>
               <div class="col-md-6 mb-3">
-                <label for="trashPointPerUnit" class="form-label">Poin per Unit:</label>
-                <input type="number" id="trashPointPerUnit" class="form-control" required />
-              </div>
-              <div class="col-md-6 mb-3">
-                <label for="trashUnit" class="form-label">Satuan:</label>
-                <select id="trashUnit" class="form-select">
+                <label for="trashUnit" class="form-label">Satuan:</label
+                ><select id="trashUnit" class="form-select">
                   <option value="kg">kg</option>
                 </select>
               </div>
             </div>
-
-            <div class="mb-3">
-              <label for="trashPicture" class="form-label">Gambar:</label>
-              <input type="file" id="trashPicture" class="form-control" accept="image/*" />
-            </div>
-
-            <div class="mb-3">
-              <label for="trashDescription" class="form-label">Deskripsi:</label>
-              <textarea id="trashDescription" class="form-control" rows="3"></textarea>
-            </div>
-
+            <div class="mb-3"><label for="trashPicture" class="form-label">Gambar:</label><input type="file" id="trashPicture" class="form-control" accept="image/*" /></div>
+            <div class="mb-3"><label for="trashDescription" class="form-label">Deskripsi:</label><textarea id="trashDescription" class="form-control" rows="3"></textarea></div>
             <div class="d-flex justify-content-end gap-2">
               <button type="button" onclick="hideTrashModal()" class="btn btn-outline-secondary"><i class="bi bi-x-circle"></i> Batal</button>
               <button type="button" onclick="saveTrash()" class="btn btn-primary"><i class="bi bi-save"></i> Simpan</button>
             </div>
           </form>
         </div>
-
         <div class="card shadow-sm">
           <div class="card-header card-custom-header py-3">Daftar Jenis Sampah</div>
           <div class="card-body">
@@ -317,6 +265,48 @@
                 <tbody id="trashTableBody">
                   <tr>
                     <td colspan="6" class="text-center p-5 text-muted"><i>Memuat data jenis sampah...</i></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="manajemenMerchandise" style="display: none">
+        <h2 class="mt-4 mb-3" style="color: #2c3e50">Manajemen Merchandise</h2>
+        <button class="btn btn-success mb-3" onclick="showAddMerchModal()"><i class="bi bi-plus-circle-fill"></i> Tambah Merchandise</button>
+        <div id="merchModal" style="display: none" class="card p-4 mt-3 mb-4 shadow-sm">
+          <h3 id="merchModalTitle" class="mb-4">Tambah Merchandise</h3>
+          <form id="merchForm">
+            <input type="hidden" id="merchId" />
+            <div class="mb-3"><label for="merchName" class="form-label">Nama Merchandise:</label><input type="text" id="merchName" class="form-control" required /></div>
+            <div class="mb-3"><label for="merchPointCost" class="form-label">Biaya Poin:</label><input type="number" id="merchPointCost" class="form-control" required /></div>
+            <div class="mb-3"><label for="merchDescription" class="form-label">Deskripsi:</label><textarea id="merchDescription" class="form-control" rows="3"></textarea></div>
+            <div class="mb-3"><label for="merchPicture" class="form-label">Gambar (Kosongkan jika tidak ingin diubah):</label><input type="file" id="merchPicture" class="form-control" accept="image/*" /></div>
+            <div class="d-flex justify-content-end gap-2">
+              <button type="button" onclick="hideMerchModal()" class="btn btn-outline-secondary"><i class="bi bi-x-circle"></i> Batal</button>
+              <button type="button" onclick="saveMerchandise()" class="btn btn-primary"><i class="bi bi-save"></i> Simpan</button>
+            </div>
+          </form>
+        </div>
+        <div class="card shadow-sm">
+          <div class="card-header card-custom-header py-3">Daftar Merchandise</div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-bordered table-hover table-striped">
+                <thead>
+                  <tr>
+                    <th>Nama</th>
+                    <th>Biaya Poin</th>
+                    <th>Gambar</th>
+                    <th>Deskripsi</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="merchTableBody">
+                  <tr>
+                    <td colspan="5" class="text-center p-5 text-muted"><i>Memuat data merchandise...</i></td>
                   </tr>
                 </tbody>
               </table>

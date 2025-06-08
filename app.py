@@ -1,5 +1,5 @@
 # type: ignore
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for, send_from_directory
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 import mysql.connector
@@ -21,7 +21,9 @@ import smtplib
 from flask import request, jsonify
 from email.mime.text import MIMEText
 from mysql.connector import Error as MySQLError 
+from decimal import Decimal
 
+import datetime
 # Load file env
 load_dotenv()
 # Flask Configuration
@@ -368,6 +370,82 @@ def get_trash_types():
             trash["picture"] = f"/static/uploads/{trash['picture']}" if trash["picture"] else None
     return jsonify(trash_types)
 
+@app.route('/admin/merchandise', methods=['GET'])
+def get_all_merchandise():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id, name, description, point_cost, image_url FROM merchandise ORDER BY id DESC")
+    merch_list = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return jsonify(merch_list)
+
+@app.route('/admin/merchandise', methods=['POST'])
+def create_merchandise():
+    try:
+        name = request.form['name']
+        description = request.form['description']
+        point_cost = request.form['point_cost']
+        image_file = request.files.get('picture')
+
+        image_url = None 
+        if image_file:
+            upload_result = cloudinary.uploader.upload(image_file)
+            image_url = upload_result['secure_url']
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO merchandise (name, description, point_cost, image_url) VALUES (%s, %s, %s, %s)",
+            (name, description, point_cost, image_url)
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return jsonify({"message": "Merchandise berhasil ditambahkan"}), 201
+    except Exception as e:
+        return jsonify({"message": str(e)}), 500
+
+@app.route('/admin/merchandise/<int:id>', methods=['PUT'])
+def update_merchandise_item(id):
+    try:
+        name = request.form['name']
+        description = request.form['description']
+        point_cost = request.form['point_cost']
+        image_file = request.files.get('picture')
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        if image_file:
+            upload_result = cloudinary.uploader.upload(image_file)
+            image_url = upload_result['secure_url']
+            cursor.execute(
+                "UPDATE merchandise SET name=%s, description=%s, point_cost=%s, image_url=%s WHERE id=%s",
+                (name, description, point_cost, image_url, id)
+            )
+        else:
+            cursor.execute(
+                "UPDATE merchandise SET name=%s, description=%s, point_cost=%s WHERE id=%s",
+                (name, description, point_cost, id)
+            )
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return jsonify({"message": "Merchandise berhasil diperbarui"})
+    except Exception as e:
+        return jsonify({"message": str(e)}), 500
+
+@app.route('/admin/merchandise/<int:id>', methods=['DELETE'])
+def delete_merchandise_item(id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM merchandise WHERE id = %s", (id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return jsonify({"message": "Merchandise berhasil dihapus"})
 
 # 📱 Endpoint Mobile App
 # 🟢 Endpoint Register User Mobile App
@@ -462,7 +540,7 @@ def login():
             print(f"✅ User {user_id} berhasil ditambahkan ke users_data!")
         except Exception as e:
             print(f"❌ Gagal menambahkan user {user_id} ke users_data: {e}")
-            connection.rollback()  # Batalkan transaksi jika gagal
+            connection.rollback()  
     cursor.close()
     connection.close()
     return jsonify({
@@ -534,7 +612,7 @@ def reset_password():
 
 
 # 🟢 Endpoint Mobile App Melihat jenis sampah
-from decimal import Decimal
+
 @app.route('/trash/types', methods=['GET'])
 def get_kategori_sampah():
     try:
@@ -944,7 +1022,108 @@ def get_user_balance(user_id):
     finally:
         if cursor: cursor.close()
         if conn: conn.close()
+
 # tes
+
+@app.route('/merchandise', methods=['GET'])
+def get_public_merchandise():
+    """
+    Endpoint publik yang bisa diakses oleh aplikasi Flutter
+    untuk menampilkan semua merchandise.
+    """
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT id, name, description, point_cost, image_url FROM merchandise ORDER BY id DESC")
+        merch_list = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return jsonify(merch_list)
+    except Exception as e:
+        print(f"Error fetching public merchandise: {e}")
+        return jsonify({"message": "Gagal mengambil data merchandise"}), 500
+    
+# Di file Flask Anda
+@app.route('/tukar-merchandise', methods=['POST'])
+def tukar_merchandise():
+    data = request.get_json()
+    user_id = data.get('user_id')
+    merchandise_id = data.get('merchandise_id')
+    poin_dibutuhkan = data.get('poin_dibutuhkan')
+
+    if not all([user_id, merchandise_id, poin_dibutuhkan]):
+        return jsonify({"message": "Data tidak lengkap"}), 400
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # Cek Poin Pengguna
+        cursor.execute("SELECT points FROM users WHERE id = %s", (user_id,))
+        user = cursor.fetchone()
+        if not user or user['points'] < poin_dibutuhkan:
+            return jsonify({"message": "Poin tidak mencukupi"}), 400
+
+        # Kurangi Poin Pengguna
+        poin_tersisa = user['points'] - poin_dibutuhkan
+        cursor.execute("UPDATE users SET points = %s WHERE id = %s", (poin_tersisa, user_id))
+
+        # Catat Penukaran dengan status default 'MENUNGGU'
+        cursor.execute(
+            "INSERT INTO merchandise_redemptions (user_id, merchandise_id, points_spent) VALUES (%s, %s, %s)",
+            (user_id, merchandise_id, poin_dibutuhkan)
+        )
+        
+        conn.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Penukaran berhasil! Mohon tunggu persetujuan admin.",
+            "poin_tersisa": poin_tersisa
+        })
+
+    except Exception as e:
+        conn.rollback()
+        print(f"Error saat tukar merchandise: {e}")
+        return jsonify({"message": "Terjadi kesalahan di server"}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
+
+@app.route('/users/<int:user_id>/merchandise-redemptions', methods=['GET'])
+def get_user_redemptions(user_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    query = """
+        SELECT 
+            mr.id,
+            mr.points_spent,
+            mr.status,
+            mr.redemption_date,
+            m.name as merchandise_name,
+            m.image_url
+        FROM merchandise_redemptions mr
+        JOIN merchandise m ON mr.merchandise_id = m.id
+        WHERE mr.user_id = %s
+        ORDER BY mr.redemption_date DESC
+    """
+    cursor.execute(query, (user_id,))
+    redemptions = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    # --- PERBAIKAN DI SINI ---
+    # Lakukan konversi manual untuk memastikan semua tipe data aman untuk JSON.
+    serializable_redemptions = []
+    for row in redemptions:
+        # Ubah objek 'datetime' menjadi string dengan format ISO 8601
+        if isinstance(row.get('redemption_date'), datetime.datetime):
+            row['redemption_date'] = row['redemption_date'].isoformat()
+        serializable_redemptions.append(row)
+    
+    return jsonify(serializable_redemptions)
+        
 # 🟢 Run the App
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000)) 
