@@ -1024,7 +1024,6 @@ def get_user_balance(user_id):
         if conn: conn.close()
 
 # tes
-
 @app.route('/merchandise', methods=['GET'])
 def get_public_merchandise():
     """
@@ -1091,17 +1090,25 @@ def tukar_merchandise():
 
 
 
+from flask import jsonify
+from datetime import datetime
+
+from flask import jsonify
+from datetime import datetime  # ✅ penting
+# import juga get_db_connection sesuai kebutuhan
+
 @app.route('/users/<int:user_id>/merchandise-redemptions', methods=['GET'])
 def get_user_redemptions(user_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+
     query = """
         SELECT 
             mr.id,
             mr.points_spent,
             mr.status,
             mr.redemption_date,
-            m.name as merchandise_name,
+            m.name AS merchandise_name,
             m.image_url
         FROM merchandise_redemptions mr
         JOIN merchandise m ON mr.merchandise_id = m.id
@@ -1113,16 +1120,16 @@ def get_user_redemptions(user_id):
     cursor.close()
     conn.close()
 
-    # --- PERBAIKAN DI SINI ---
-    # Lakukan konversi manual untuk memastikan semua tipe data aman untuk JSON.
     serializable_redemptions = []
     for row in redemptions:
-        # Ubah objek 'datetime' menjadi string dengan format ISO 8601
-        if isinstance(row.get('redemption_date'), datetime.datetime):
-            row['redemption_date'] = row['redemption_date'].isoformat()
-        serializable_redemptions.append(row)
-    
-    return jsonify(serializable_redemptions)
+        row_copy = row.copy()
+        if isinstance(row_copy.get('redemption_date'), datetime):  
+            row_copy['redemption_date'] = row_copy['redemption_date'].isoformat()
+        serializable_redemptions.append(row_copy)
+
+    return jsonify(serializable_redemptions), 200
+
+
         
 # 🟢 Run the App
 if __name__ == "__main__":
