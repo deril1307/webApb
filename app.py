@@ -1335,7 +1335,7 @@ def get_user_pickup_history(user_id):
         cursor.close()
         conn.close()
 
-# 🟢 Run the App
+# Run the App
 if _name_ == "_main_":
     port = int(os.getenv("PORT", 5000)) 
     app.run(port=port, debug=False)
