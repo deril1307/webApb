@@ -22,10 +22,12 @@ from flask import request, jsonify
 from email.mime.text import MIMEText
 from mysql.connector import Error as MySQLError 
 from decimal import Decimal
-
 import datetime
+from pathlib import Path
 # Load file env
-load_dotenv()
+# Load file env secara eksplisit
+env_path = Path('.') / '.env'
+load_dotenv(dotenv_path=env_path)
 # Flask Configuration
 app = Flask(__name__)
 app.secret_key = os.getenv("SESSION_SECRET_KEY", "supersecretkey")
@@ -53,8 +55,6 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-
-# Konfigurasi database menggunakan environment variables
 DATABASE_CONFIG = {
     "host": os.getenv("DB_HOST"),
     "user": os.getenv("DB_USER"),
@@ -96,7 +96,7 @@ def admin_login():
     email = data.get("email")
     password = data.get("password")
     connection = get_db_connection()
-    cursor = connection.cursor(dictionary=True) # type: ignore
+    cursor = connection.cursor(dictionary=True) 
     cursor.execute("SELECT * FROM admin WHERE email = %s", (email,))
     admin = cursor.fetchone()
     cursor.close()
@@ -1092,10 +1092,8 @@ def tukar_merchandise():
 
 from flask import jsonify
 from datetime import datetime
-
 from flask import jsonify
-from datetime import datetime  # ✅ penting
-# import juga get_db_connection sesuai kebutuhan
+from datetime import datetime  
 
 @app.route('/users/<int:user_id>/merchandise-redemptions', methods=['GET'])
 def get_user_redemptions(user_id):
@@ -1130,7 +1128,231 @@ def get_user_redemptions(user_id):
     return jsonify(serializable_redemptions), 200
 
 
+# from flask import Flask, jsonify, request
+# import mysql.connector
+from mysql.connector import Error 
+@app.route('/api/waste-categories', methods=['GET'])
+def get_waste_categories():
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Database connection failed"}), 500
+    
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id, name, point_per_unit FROM waste_categories ORDER BY name")
+    categories = cursor.fetchall()
+    
+    cursor.close()
+    conn.close()
+    
+    return jsonify(categories)
+
+@app.route('/api/pickup-requests', methods=['POST'])
+def create_pickup_request():
+    data = request.get_json()
+
+    required_fields = ['user_id', 'waste_category_id', 'estimated_weight_g', 'address', 'latitude', 'longitude']
+    if not all(field in data for field in required_fields):
+        return jsonify({"error": "Data tidak lengkap"}), 400
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Database connection failed"}), 500
+
+    cursor = conn.cursor()
+    sql = """
+        INSERT INTO pickup_requests 
+        (user_id, waste_category_id, estimated_weight_g, address, latitude, longitude) 
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """
+    try:
+        cursor.execute(sql, (
+            data['user_id'],
+            data['waste_category_id'],
+            data['estimated_weight_g'], 
+            data['address'],
+            data['latitude'],
+            data['longitude']
+        ))
+        conn.commit()
+        return jsonify({"message": "Permintaan penjemputan berhasil dibuat"}), 201
+    except Error as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route('/api/admin/pickup-requests', methods=['GET'])
+def get_admin_pickup_requests():
+    conn = get_db_connection()
+    if conn is None: return jsonify({"error": "Database connection failed"}), 500
+    
+    cursor = conn.cursor(dictionary=True)
+    sql = """
+        SELECT 
+            pr.id,
+            pr.status,
+            pr.address,
+            pr.estimated_weight_g, -- DIUBAH
+            pr.request_date,
+            u.username,
+            wc.name as waste_category_name
+        FROM pickup_requests pr
+        JOIN users u ON pr.user_id = u.id
+        JOIN waste_categories wc ON pr.waste_category_id = wc.id
+        ORDER BY pr.request_date DESC
+    """
+    cursor.execute(sql)
+    requests = cursor.fetchall()
+    
+    cursor.close()
+    conn.close()
+    
+    return jsonify(requests)
+
+@app.route('/api/admin/pickup-requests/<int:request_id>/complete', methods=['POST'])
+def complete_pickup_request(request_id):
+    data = request.get_json()
+    if 'final_weight_g' not in data:
+        return jsonify({"error": "Berat final (final_weight_g) dibutuhkan"}), 400
+
+    final_weight_g = int(data['final_weight_g'])
+
+    conn = get_db_connection()
+    if conn is None: return jsonify({"error": "Koneksi database gagal"}), 500
+
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # 1. Dapatkan detail permintaan, termasuk point_per_unit
+        cursor.execute("""
+            SELECT pr.user_id, pr.waste_category_id, pr.latitude, pr.longitude, wc.point_per_unit
+            FROM pickup_requests pr
+            JOIN waste_categories wc ON pr.waste_category_id = wc.id
+            WHERE pr.id = %s AND pr.status IN ('DIPROSES', 'MENUNGGU_KONFIRMASI')
+        """, (request_id,))
         
+        req_details = cursor.fetchone()
+        if not req_details:
+            return jsonify({"error": "Permintaan tidak ditemukan atau sudah selesai"}), 404
+
+        # 2. Hitung poin
+        points_earned = int((final_weight_g / 1000.0) * req_details['point_per_unit'])
+
+        # 3. Masukkan ke tabel setor_sampah
+        sql_setor = """
+            INSERT INTO setor_sampah (user_id, waste_id, weight, points_earned, latitude, longitude, date)
+            VALUES (%s, %s, %s, %s, %s, %s, NOW())
+        """
+        cursor.execute(sql_setor, (
+            req_details['user_id'], 
+            req_details['waste_category_id'], 
+            final_weight_g, 
+            points_earned, 
+            req_details['latitude'], 
+            req_details['longitude']
+        ))
+
+        # 4. Update poin user
+        cursor.execute("UPDATE users SET points = points + %s WHERE id = %s", (points_earned, req_details['user_id']))
+
+        # 5. Update status permintaan menjadi SELESAI
+        cursor.execute("UPDATE pickup_requests SET status = 'SELESAI', completion_date = NOW() WHERE id = %s", (request_id,))
+
+        conn.commit() 
+        return jsonify({"message": f"Sukses. {points_earned} poin ditambahkan ke user."})
+
+    except Error as e: 
+        conn.rollback() 
+        return jsonify({"error": f"Transaksi Gagal: {str(e)}"}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route('/api/admin/pickup-requests/<int:request_id>/status', methods=['PUT'])
+def update_pickup_status(request_id):
+    """API untuk admin mengubah status permintaan (misal: ke DIPROSES atau DIBATALKAN)."""
+    data = request.get_json()
+    new_status = data.get('status')
+    if not new_status:
+        return jsonify({"error": "Status baru dibutuhkan"}), 400
+
+    allowed_statuses = ['MENUNGGU_KONFIRMASI', 'DIPROSES', 'SELESAI', 'DIBATALKAN']
+    if new_status not in allowed_statuses:
+        return jsonify({"error": f"Status tidak valid: {new_status}"}), 400
+
+    if new_status == 'SELESAI':
+        return jsonify({"error": "Gunakan endpoint '/complete' untuk menyelesaikan permintaan"}), 400
+
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Koneksi database gagal"}), 500
+
+    cursor = conn.cursor()
+    try:
+        
+        sql = "UPDATE pickup_requests SET status = %s WHERE id = %s"
+        cursor.execute(sql, (new_status, request_id))
+        conn.commit()
+        if cursor.rowcount == 0:
+            return jsonify({"error": "Permintaan tidak ditemukan"}), 404
+
+        return jsonify({"message": f"Status permintaan #{request_id} berhasil diubah menjadi {new_status}"})
+    except Error as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
+
+@app.route('/api/admin/pickup-requests/<int:request_id>', methods=['DELETE'])
+def delete_pickup_request(request_id):
+    """API untuk menghapus data permintaan penjemputan."""
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"error": "Koneksi database gagal"}), 500
+
+    cursor = conn.cursor()
+    try:
+        sql = "DELETE FROM pickup_requests WHERE id = %s"
+        cursor.execute(sql, (request_id,))
+        conn.commit()
+        
+        if cursor.rowcount == 0:
+            return jsonify({"error": "Permintaan tidak ditemukan untuk dihapus"}), 404
+
+        return jsonify({"message": f"Permintaan #{request_id} berhasil dihapus."})
+    except Error as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
+
+@app.route('/api/users/<int:user_id>/pickup-history', methods=['GET'])
+def get_user_pickup_history(user_id):
+    conn = get_db_connection()
+    if conn is None: return jsonify({"error": "Koneksi database gagal"}), 500
+    cursor = conn.cursor(dictionary=True)
+    try:
+        sql = """
+            SELECT pr.id, pr.status, pr.address, pr.estimated_weight_g, pr.request_date, wc.name as waste_category_name
+            FROM pickup_requests pr
+            JOIN waste_categories wc ON pr.waste_category_id = wc.id
+            WHERE pr.user_id = %s
+            ORDER BY pr.request_date DESC
+        """
+        cursor.execute(sql, (user_id,))
+        history = cursor.fetchall()
+        return jsonify(history)
+    except Error as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
 # 🟢 Run the App
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000)) 

@@ -1,4 +1,4 @@
-// Bagian Autentikasi dan Logout (Kode Asli Anda)
+// Bagian Autentikasi dan Logout
 document.addEventListener("DOMContentLoaded", async function () {
   try {
     const response = await fetch("/admin/dashboard", { method: "GET", credentials: "include" });
@@ -9,6 +9,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     loadUsers();
     loadTrashTypes();
     loadMerchandise();
+    loadPickupRequests();
   } catch (error) {
     alert("Session expired! Please log in again.");
     window.location.href = "/admin/login";
@@ -32,12 +33,18 @@ function showSection(sectionId) {
   document.getElementById("dataSampah").style.display = "none";
   document.getElementById("manajemenMerchandise").style.display = "none";
   document.getElementById("grafikMonitoring").style.display = "none";
+  document.getElementById("permintaanJemput").style.display = "none";
+
+  document.querySelectorAll(".sidebar .nav-link").forEach((link) => {
+    link.classList.remove("active");
+  });
 
   document.getElementById(sectionId).style.display = "block";
+  document.getElementById(`nav-${sectionId}`).classList.add("active");
 }
 
 // ===============================================
-// Bagian Users (Kode Asli Anda, TIDAK DIUBAH)
+// Bagian Users
 // ===============================================
 async function loadUsers() {
   try {
@@ -83,7 +90,7 @@ async function deleteUser(userId) {
 }
 
 // ===============================================
-// Bagian Trash (Kode Asli Anda, TIDAK DIUBAH)
+// Bagian Trash
 // ===============================================
 async function loadTrashTypes() {
   try {
@@ -183,9 +190,8 @@ async function deleteTrash(id) {
 }
 
 // =======================================================
-// BAGIAN MERCHANDISE (FUNGSI saveMerchandise DIPERBAIKI)
+// BAGIAN MERCHANDISE
 // =======================================================
-
 async function loadMerchandise() {
   try {
     const response = await fetch("/admin/merchandise");
@@ -239,7 +245,6 @@ function editMerch(id, name, pointCost, description) {
   document.getElementById("merchModal").style.display = "block";
 }
 
-// FUNGSI INI TELAH DIPERBAIKI
 async function saveMerchandise() {
   const id = document.getElementById("merchId").value;
   const name = document.getElementById("merchName").value;
@@ -252,7 +257,6 @@ async function saveMerchandise() {
     return;
   }
 
-  // Membuat FormData secara manual, sama seperti saveTrash()
   const formData = new FormData();
   formData.append("name", name);
   formData.append("point_cost", pointCost);
@@ -269,7 +273,7 @@ async function saveMerchandise() {
     const response = await fetch(url, {
       method: method,
       body: formData,
-      credentials: "include", // Penting jika rute Anda memerlukan otentikasi
+      credentials: "include",
     });
 
     if (!response.ok) {
@@ -291,7 +295,7 @@ async function deleteMerchandise(id) {
   try {
     const response = await fetch(`/admin/merchandise/${id}`, {
       method: "DELETE",
-      credentials: "include", // Penting jika rute Anda memerlukan otentikasi
+      credentials: "include",
     });
     if (!response.ok) {
       const errorData = await response.json();
@@ -302,5 +306,176 @@ async function deleteMerchandise(id) {
   } catch (error) {
     console.error("Error deleting merchandise:", error);
     alert("Gagal menghapus: " + error.message);
+  }
+}
+
+// =======================================================
+// === BAGIAN PERMINTAAN JEMPUT (PICKUP REQUESTS) ===
+// =======================================================
+async function loadPickupRequests() {
+  try {
+    const response = await fetch("/api/admin/pickup-requests", { credentials: "include" });
+    if (!response.ok) throw new Error("Gagal mengambil data permintaan jemput");
+    const requests = await response.json();
+    const tbody = document.getElementById("pickupRequestTableBody");
+    tbody.innerHTML = "";
+
+    if (requests.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" class="text-center p-5 text-muted"><i>Tidak ada permintaan jemput saat ini.</i></td></tr>`;
+      return;
+    }
+
+    requests.forEach((request) => {
+      const requestDate = new Date(request.request_date).toLocaleString("id-ID", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      const statuses = {
+        MENUNGGU_KONFIRMASI: "Menunggu Konfirmasi",
+        DIPROSES: "Diproses",
+        SELESAI: "Selesaikan",
+        DIBATALKAN: "Batalkan",
+      };
+
+      let statusClass = "";
+      switch (request.status) {
+        case "MENUNGGU_KONFIRMASI":
+          statusClass = "status-menunggu_konfirmasi";
+          break;
+        case "DIPROSES":
+          statusClass = "status-diproses";
+          break;
+        case "SELESAI":
+          statusClass = "status-selesai";
+          break;
+        case "DIBATALKAN":
+          statusClass = "status-dibatalkan";
+          break;
+      }
+
+      let optionsHtml = "";
+      for (const key in statuses) {
+        const selected = request.status === key ? "selected" : "";
+        optionsHtml += `<option value="${key}" ${selected}>${statuses[key]}</option>`;
+      }
+
+      const isDisabled = request.status === "SELESAI" || request.status === "DIBATALKAN";
+
+      const interactiveStatus = `
+        <select 
+          class="status-select ${statusClass}" 
+          ${isDisabled ? "disabled" : ""} 
+          onchange="updateRequestStatus(this, ${request.id})"
+        >
+          ${optionsHtml}
+        </select>
+      `;
+
+      const row = `
+        <tr>
+          <td>${request.id}</td>
+          <td>${request.username}</td>
+          <td>${request.waste_category_name}</td>
+          <td>${request.estimated_weight_g} g</td>
+          <td>${request.address}</td>
+          <td>${requestDate}</td>
+          <td>${interactiveStatus}</td> 
+        </tr>
+      `;
+      tbody.innerHTML += row;
+    });
+  } catch (error) {
+    console.error("Error loading pickup requests:", error);
+    document.getElementById("pickupRequestTableBody").innerHTML = `<tr><td colspan="7" class="text-center p-5 text-danger">Gagal memuat data.</td></tr>`;
+  }
+}
+
+function updateRequestStatus(selectElement, requestId) {
+  const newStatus = selectElement.value;
+
+  if (newStatus === "SELESAI") {
+    selectElement.blur();
+    selesaikanPermintaan(requestId);
+    return;
+  }
+
+  changeStatusOnly(requestId, newStatus);
+}
+
+async function changeStatusOnly(requestId, newStatus) {
+  if (!confirm(`Anda yakin ingin mengubah status permintaan #${requestId} menjadi "${newStatus}"?`)) {
+    loadPickupRequests();
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/admin/pickup-requests/${requestId}/status`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: newStatus }),
+      credentials: "include", // <-- DITAMBAHKAN
+    });
+
+    // Cek jika respons bukan JSON sebelum parsing
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.indexOf("application/json") !== -1) {
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Unknown error occurred");
+      alert(result.message);
+    } else {
+      const text = await response.text();
+      throw new Error("Server tidak merespons dengan JSON: " + text);
+    }
+
+    loadPickupRequests();
+  } catch (error) {
+    console.error("Gagal mengubah status:", error);
+    alert("Gagal mengubah status: " + error.message);
+    loadPickupRequests();
+  }
+}
+
+async function selesaikanPermintaan(requestId) {
+  const beratFinal = window.prompt("Masukkan berat akhir sampah yang sebenarnya (dalam gram):");
+
+  if (beratFinal === null || beratFinal.trim() === "") {
+    loadPickupRequests();
+    return;
+  }
+  if (isNaN(beratFinal) || parseInt(beratFinal) < 0) {
+    alert("Harap masukkan angka yang valid untuk berat.");
+    loadPickupRequests();
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/admin/pickup-requests/${requestId}/complete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ final_weight_g: parseInt(beratFinal) }),
+      credentials: "include", // <-- DITAMBAHKAN
+    });
+
+    // Cek jika respons bukan JSON sebelum parsing
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.indexOf("application/json") !== -1) {
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Unknown error occurred");
+      alert(`Sukses! ${result.message}`);
+    } else {
+      const text = await response.text();
+      throw new Error("Server tidak merespons dengan JSON: " + text);
+    }
+
+    loadPickupRequests();
+    loadUsers();
+  } catch (error) {
+    console.error("Gagal menghubungi server:", error);
+    alert("Gagal menyelesaikan permintaan: " + error.message);
+    loadPickupRequests();
   }
 }
