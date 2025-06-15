@@ -30,15 +30,10 @@ env_path = Path('.') / '.env'
 load_dotenv(dotenv_path=env_path)
 # Flask Configuration
 app = Flask(_name_)
-app = Flask(__name__)
-app = Flask(__name__)
 app.secret_key = os.getenv("SESSION_SECRET_KEY", "supersecretkey")
 
 bcrypt = Bcrypt(app)
 CORS(app, supports_credentials=True, resources={r"/": {"origins": ""}})
-CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})
-CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})
-
 # Konfigurasi Cloudinary
 cloudinary.config(
     cloud_name=os.getenv("CLOUD_NAME"),
@@ -1363,13 +1358,6 @@ def get_user_pickup_history(user_id):
 # Run the App
 if _name_ == "_main_":
 # 🟢 Run the App
-<<<<<<< Updated upstream
 if __name__ == "__main__":
-=======
-if _name_ == "_main_":
->>>>>>> Stashed changes
     port = int(os.getenv("PORT", 5000)) 
     app.run(port=port, debug=False)
-    app.run(port=port, debug=False) 
-
-    app.run(port=port, debug=False) 
