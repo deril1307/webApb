@@ -29,7 +29,7 @@ from pathlib import Path
 env_path = Path('.') / '.env'
 load_dotenv(dotenv_path=env_path)
 # Flask Configuration
-app = Flask(_name_)
+app = Flask(__name__)
 app.secret_key = os.getenv("SESSION_SECRET_KEY", "supersecretkey")
 
 bcrypt = Bcrypt(app)
