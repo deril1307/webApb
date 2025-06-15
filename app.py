@@ -24,16 +24,18 @@ from mysql.connector import Error as MySQLError
 from decimal import Decimal
 import datetime
 from pathlib import Path
-# Load file env
+# Load file env.
 # Load file env secara eksplisit
 env_path = Path('.') / '.env'
 load_dotenv(dotenv_path=env_path)
 # Flask Configuration
+app = Flask(_name_)
 app = Flask(__name__)
 app = Flask(__name__)
 app.secret_key = os.getenv("SESSION_SECRET_KEY", "supersecretkey")
 
 bcrypt = Bcrypt(app)
+CORS(app, supports_credentials=True, resources={r"/": {"origins": ""}})
 CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})
 CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})
 
@@ -205,27 +207,18 @@ def add_trash_type():
 
     # Upload ke Cloudinary
     cloudinary_result = cloudinary.uploader.upload(local_path)
-    # Simpan ke lokal
-    filename = secure_filename(file.filename)
-    local_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    file.save(local_path)
-
-    # Upload ke Cloudinary
-    cloudinary_result = cloudinary.uploader.upload(local_path)
     cloudinary_url = cloudinary_result["secure_url"]
+    filename = file.filename  # simpan nama file saja, tidak disimpan lokal
 
     name = request.form.get("name")
-    point_per_unit = request.form.get("point_per_unit")  # Changed from price
     point_per_unit = request.form.get("point_per_unit")  # Changed from price
     unit = request.form.get("unit")
     description = request.form.get("description")
 
     if not name or not point_per_unit or not unit:  # Changed validation
-    if not name or not point_per_unit or not unit:  # Changed validation
         return jsonify({"error": "Nama, poin per unit, dan satuan harus diisi"}), 400
 
     try:
-        point_per_unit = float(point_per_unit)  # Ensure numeric value
         point_per_unit = float(point_per_unit)  # Ensure numeric value
     except ValueError:
         return jsonify({"error": "Poin per unit harus berupa angka"}), 400
@@ -251,26 +244,21 @@ def add_trash_type():
         }
     }), 201
 
+
 # 🟢 Mengedit jenis sampah
 @app.route('/admin/trash-types/<int:trash_id>', methods=['PUT'])
 def update_trash_type(trash_id):
     # Get form data
-    # Get form data
     name = request.form.get("name")
-    point_per_unit = request.form.get("point_per_unit")  # Changed from price
     point_per_unit = request.form.get("point_per_unit")  # Changed from price
     unit = request.form.get("unit")
     description = request.form.get("description")
     
     # Validate required fields
-    
-    # Validate required fields
     if not name or not point_per_unit or not unit:
         return jsonify({"error": "Nama, poin per unit, dan satuan harus diisi"}), 400
     
-    
     try:
-        point_per_unit = float(point_per_unit)  # Ensure numeric value
         point_per_unit = float(point_per_unit)  # Ensure numeric value
     except ValueError:
         return jsonify({"error": "Poin per unit harus berupa angka"}), 400
@@ -279,24 +267,18 @@ def update_trash_type(trash_id):
     cursor = conn.cursor(dictionary=True)
     
     # 🔹 Get old data (cloudinary_url & picture)
-    
-    # 🔹 Get old data (cloudinary_url & picture)
     cursor.execute("SELECT cloudinary_url, picture FROM waste_categories WHERE id=%s", (trash_id,))
     old_data = cursor.fetchone()
-    
     
     if not old_data:
         conn.close()
         return jsonify({"error": "Jenis sampah tidak ditemukan"}), 404
         
-        
     old_cloudinary_url = old_data["cloudinary_url"]
     old_picture = old_data["picture"]
     cloudinary_url = old_cloudinary_url  # Default to old image
-    cloudinary_url = old_cloudinary_url  # Default to old image
     picture = old_picture
 
-    # Handle image upload if provided
     # Handle image upload if provided
     if "picture" in request.files:
         file = request.files["picture"]
@@ -307,15 +289,8 @@ def update_trash_type(trash_id):
 
             # 🔹 Upload to Cloudinary
             cloudinary_result = cloudinary.uploader.upload(local_path)
-            filename = secure_filename(file.filename)
-            local_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(local_path)
-
-            # 🔹 Upload to Cloudinary
-            cloudinary_result = cloudinary.uploader.upload(local_path)
             cloudinary_url = cloudinary_result["secure_url"]
 
-            # 🔹 Delete old Cloudinary image if exists
             # 🔹 Delete old Cloudinary image if exists
             if old_cloudinary_url:
                 public_id = old_cloudinary_url.split("/")[-1].split(".")[0]
@@ -328,18 +303,10 @@ def update_trash_type(trash_id):
                     os.remove(old_path)
 
             picture = filename  
-            # 🔹 Delete old local file if exists
-            if old_picture:
-                old_path = os.path.join(app.config['UPLOAD_FOLDER'], old_picture)
-                if os.path.exists(old_path):
-                    os.remove(old_path)
-
-            picture = filename  
         else:
             conn.close()
             return jsonify({"error": "Format gambar tidak didukung"}), 400
 
-    # 🔹 Update database
     # 🔹 Update database
     query = """
         UPDATE waste_categories 
@@ -355,7 +322,6 @@ def update_trash_type(trash_id):
     conn.commit()
     conn.close()
     
-    
     return jsonify({
         "message": "Jenis sampah berhasil diperbarui",
         "data": {
@@ -365,6 +331,7 @@ def update_trash_type(trash_id):
             "unit": unit
         }
     }), 200
+
 
 # 🟢 Menghapus jenis sampah
 @app.route('/admin/trash-types/<int:trash_id>', methods=['DELETE'])
@@ -533,7 +500,6 @@ def register():
     except Exception as e:
         connection.rollback()
         message = f"⚠️ Error saat registrasi: {e}"
-        message = f"⚠️ Error saat registrasi: {e}"
         success = False
     finally:
         cursor.close()
@@ -567,12 +533,10 @@ def login():
     user_id = user["id"]
     
     # ✅ Cek apakah user sudah ada di tabel `users_data`
-    # ✅ Cek apakah user sudah ada di tabel `users_data`
     cursor.execute("SELECT user_id FROM users_data WHERE user_id = %s", (user_id,))
     user_data = cursor.fetchone()
 
     if not user_data:
-        print(f"ℹ️ User {user_id} belum ada di users_data, akan dibuat otomatis.")
         print(f"ℹ️ User {user_id} belum ada di users_data, akan dibuat otomatis.")
         try:
             cursor.execute(
@@ -725,7 +689,6 @@ def get_user(user_id):
 
     except Exception as e:
         print(f"⚠️ Error: {str(e)}")  # Debugging
-        print(f"⚠️ Error: {str(e)}")  # Debugging
         return jsonify({"error": str(e)}), 500
     
 
@@ -736,7 +699,6 @@ def serve_uploaded_file(filename):
         abort(404)  # Kembalikan error 404 jika file tidak ditemukan
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-# ✅ Endpoint: Ambil data profil dari tabel `users_data`
 # ✅ Endpoint: Ambil data profil dari tabel `users_data`
 @app.route("/get-profile/<int:user_id>", methods=["GET"])
 def get_profile(user_id):
@@ -772,12 +734,10 @@ def get_profile(user_id):
             })
     except Exception as e:
         return jsonify({"error": "⚠️ Terjadi kesalahan"}), 500
-        return jsonify({"error": "⚠️ Terjadi kesalahan"}), 500
     finally:
         conn.close()
 
 
-# ✅ Endpoint: Update profil pengguna di tabel `users_data`
 # ✅ Endpoint: Update profil pengguna di tabel `users_data`
 @app.route("/update-profile", methods=["PUT"])
 def update_profile():
@@ -797,7 +757,6 @@ def update_profile():
     try:
         cur = conn.cursor(dictionary=True)
         
-        # 🟢 Cek apakah user ada di `users_data`
         # 🟢 Cek apakah user ada di `users_data`
         cur.execute("SELECT profile_picture FROM users_data WHERE user_id = %s", (user_id,))
         user_data = cur.fetchone()
@@ -832,12 +791,10 @@ def update_profile():
     
     except mysql.connector.Error as e:
         return jsonify({"error": f"⚠️ Error saat update profil: {e}"}), 500
-        return jsonify({"error": f"⚠️ Error saat update profil: {e}"}), 500
     finally:
         cur.close()
         conn.close()
         
-# ✅ Endpoint: setor sampah pengguna di tabel `setor_sampah`
 # ✅ Endpoint: setor sampah pengguna di tabel `setor_sampah`
 @app.route('/setor-sampah', methods=['POST'])
 def setor_sampah():
@@ -1403,6 +1360,8 @@ def get_user_pickup_history(user_id):
         cursor.close()
         conn.close()
 
+# Run the App
+if _name_ == "_main_":
 # 🟢 Run the App
 <<<<<<< Updated upstream
 if __name__ == "__main__":
@@ -1410,6 +1369,7 @@ if __name__ == "__main__":
 if _name_ == "_main_":
 >>>>>>> Stashed changes
     port = int(os.getenv("PORT", 5000)) 
+    app.run(port=port, debug=False)
     app.run(port=port, debug=False) 
 
     app.run(port=port, debug=False) 
