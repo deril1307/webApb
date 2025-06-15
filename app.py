@@ -1354,6 +1354,10 @@ def get_user_pickup_history(user_id):
         conn.close()
 
 # 🟢 Run the App
+<<<<<<< Updated upstream
 if __name__ == "__main__":
+=======
+if _name_ == "_main_":
+>>>>>>> Stashed changes
     port = int(os.getenv("PORT", 5000)) 
     app.run(port=port, debug=False) 
