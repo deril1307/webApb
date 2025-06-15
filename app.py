@@ -24,7 +24,7 @@ from mysql.connector import Error as MySQLError
 from decimal import Decimal
 import datetime
 from pathlib import Path
-# Load file env
+# Load file env.
 # Load file env secara eksplisit
 env_path = Path('.') / '.env'
 load_dotenv(dotenv_path=env_path)
