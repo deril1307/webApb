@@ -587,10 +587,8 @@ def reset_password():
     connection.commit()
     cursor.close()
     connection.close()
-
     del reset_tokens[email]
     return jsonify({"message": "Password berhasil direset", "success": True}), 200
-
 
 
 # 🟢 Endpoint Mobile App Melihat jenis sampah
@@ -631,7 +629,7 @@ def uploaded_file(filename):
     conn.close()
 
     if result and result["cloudinary_url"]:
-        return redirect(result["cloudinary_url"])  # Redirect ke Cloudinary
+        return redirect(result["cloudinary_url"])  
 
     return jsonify({"error": "File not found"}), 404
 
@@ -740,7 +738,7 @@ def update_profile():
             cur.close()
             conn.close()
             return jsonify({"error": "User tidak ditemukan"}), 404
-        profile_picture_url = user_data["profile_picture"]  # Simpan URL lama jika ada
+        profile_picture_url = user_data["profile_picture"]  
 
         # ✅ Jika ada file gambar baru, upload ke Cloudinary
         if "profile_picture" in request.files:
@@ -753,7 +751,7 @@ def update_profile():
                     public_id = profile_picture_url.split("/")[-1].split(".")[0]
                     cloudinary.uploader.destroy(f"user_profiles/{public_id}")
                 
-                profile_picture_url = upload_result["secure_url"]  # Simpan URL gambar baru
+                profile_picture_url = upload_result["secure_url"]  
 
         # 🔹 Update data di database
         cur.execute(
@@ -774,13 +772,12 @@ def update_profile():
 @app.route('/setor-sampah', methods=['POST'])
 def setor_sampah():
     data = request.get_json()
-    # Validasi data, sekarang juga termasuk latitude dan longitude
     if not data or \
        'user_id' not in data or \
        'waste_id' not in data or \
        'weight' not in data or \
        'latitude' not in data or \
-       'longitude' not in data: # Tambahkan pengecekan untuk latitude dan longitude
+       'longitude' not in data: 
         return jsonify({'error': 'Data tidak lengkap (user_id, waste_id, weight, latitude, longitude dibutuhkan)'}), 400
 
     user_id = data['user_id']
@@ -789,7 +786,7 @@ def setor_sampah():
     latitude = data['latitude']     
     longitude = data['longitude']   
 
-    # Pastikan latitude dan longitude adalah float atau bisa dikonversi
+
     try:
         latitude = float(latitude)
         longitude = float(longitude)
@@ -1337,6 +1334,5 @@ def get_user_pickup_history(user_id):
 
 # 🟢 Run the App
 if __name__ == "__main__":
-
     port = int(os.getenv("PORT", 5000)) 
     app.run(port=port, debug=False)
